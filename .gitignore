@@ -18,6 +18,16 @@ env/
 *.swp
 *.swo
 
+# Claude Code (project-specific, not for sharing)
+CLAUDE.md
+exemplos-claude/
+.claude/
+ROTEIRO.md
+VALIDATION_GUIDE.md
+
+# Python packaging artifacts
+*.egg-info/
+
 # Jupyter
 .ipynb_checkpoints/
 

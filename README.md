@@ -1,4 +1,4 @@
-# Telco Customer Churn — Predição de Cancelamento de Clientes
+# Telco Customer Churn — Previsão de Cancelamento de Clientes
 
 ## Descrição do Projeto
 
@@ -10,74 +10,167 @@ Este projeto implementa um sistema **end-to-end de Machine Learning** que prevê
 têm maior risco de cancelar o serviço, permitindo que a empresa atue preventivamente com
 campanhas de retenção direcionadas.
 
-O modelo principal é uma **rede neural (MLP)** construída com PyTorch, complementada por
-modelos baseline (Logistic Regression, DummyClassifier) para referência de performance.
+O modelo central é uma **rede neural (MLP)** construída com PyTorch, complementada por
+modelos baseline (Logistic Regression, DummyClassifier) e ensemble (Gradient Boosting,
+Random Forest) para referência de performance, todos rastreados com MLflow.
 
-## Problema de Negócio
+---
 
-### Contexto
+## ML Canvas
 
-O churn em telecomunicações é um dos problemas mais impactantes do setor. Quando um cliente
-cancela, a empresa perde não apenas a receita recorrente, mas também o investimento feito
-para adquiri-lo. Identificar sinais de insatisfação antes do cancelamento permite intervenções
-como ofertas personalizadas, descontos ou contato proativo do time de retenção.
+### 1. Proposta de Valor
 
-### Stakeholders
+**Problema:** Uma empresa de telecom da Califórnia perde clientes sem conseguir agir preventivamente.
 
-| Stakeholder | Papel | Como usa o modelo |
+**Solução:** Um modelo que identifica, com antecedência, quais clientes têm alta probabilidade de cancelar — permitindo que a equipe de retenção/CRM aja *antes* do cancelamento acontecer.
+
+---
+
+### 2. Stakeholders
+
+| Papel | Interesse |
+|---|---|
+| **Equipe de Retenção/CRM** | Recebe a lista de clientes em risco para acionar campanhas |
+| **Gestão de Produto** | Usa os drivers de churn para priorizar melhorias no serviço |
+| **Área Financeira** | Avalia o ROI das campanhas vs. custo do churn |
+| **Equipe de Dados/ML** | Constrói, monitora e retreina o modelo |
+| **Área de Atendimento** | ~25% dos churns são por suporte — impacto operacional direto |
+
+---
+
+### 3. Dados Disponíveis
+
+**Fonte:** [IBM Telco Customer Churn — Kaggle](https://www.kaggle.com/datasets/yeanzc/telco-customer-churn-ibm-dataset) — 7.032 clientes após limpeza (original: 7.043), California (Q3), 33 colunas originais.
+
+| Grupo | Variáveis-chave | Uso no Modelo |
 |---|---|---|
-| **Equipe de Retenção/CRM** | Principal consumidor | Recebe a lista de clientes em risco e executa campanhas de retenção |
-| **Gestão de Produto** | Consumidor estratégico | Usa insights para entender quais aspectos do serviço influenciam o churn |
-| **Área Financeira** | Avaliação de ROI | Mede o retorno das ações de retenção baseadas no modelo |
-| **Equipe de Dados/ML** | Mantenedor | Constrói, monitora e atualiza o modelo em produção |
+| Demográficas | Gender, Senior Citizen, Partner, Dependents | Feature |
+| Contrato | Tenure Months, Contract, Payment Method, Paperless Billing | Feature (mais preditivas) |
+| Serviços | Phone, Internet, Security, Backup, Tech Support, Streaming | Feature |
+| Financeiro | Monthly Charges, Total Charges | Feature |
+| **Engenharia** | monthly_per_tenure, contract_risk_score, services_count, has_protection, is_senior_alone, tenure_group | Feature (top preditoras — #1 e #2 em feature importance) |
+| **Leakage** | Churn Score, CLTV | Excluir (derivados do evento) |
+| **Target** | Churn Value (0/1) | Variável alvo |
+| Pós-evento | Churn Reason | Excluir (só existe após o churn) |
+| Geolocalização | City, Zip Code, Lat/Long | Excluir (sem variância útil no escopo) |
 
-### Métricas de Sucesso
+**Desbalanceamento:** 26.58% churn / 73.42% não-churn (ratio ≈ 1:2.8)
 
-**Métricas técnicas:**
+---
 
-- **ROC-AUC** — capacidade geral de discriminação entre clientes que vão ou não cancelar
-- **PR-AUC** — performance em cenário desbalanceado (churn é tipicamente a classe minoritária)
-- **F1-Score** — equilíbrio entre precision e recall
-- **Precision** — dentre os clientes sinalizados como risco, quantos realmente cancelariam
-- **Recall** — dentre os clientes que cancelaram, quantos o modelo conseguiu identificar
+### 4. Definição da Tarefa de ML
 
-**KPI de negócio (critério de sucesso do projeto):**
+| Item | Decisão |
+|---|---|
+| **Tipo de tarefa** | Classificação binária supervisionada |
+| **Output do modelo** | Probabilidade de churn (0.0 – 1.0) |
+| **Decisão de negócio** | Threshold ajustável (padrão 0.5, tunable) |
+| **Granularidade** | Por cliente individual |
+| **Frequência** | Batch mensal (ou semanal no futuro) |
 
-O indicador-chave para avaliar se o projeto gerou resultado real é a **redução da taxa de
-churn** após a implementação de ações preventivas baseadas no modelo. Concretamente:
+---
 
-- **Meta:** reduzir a taxa de churn mensal em pelo menos **15%** em relação à taxa atual,
-  dentro de um período de avaliação de 3 meses após o deploy do modelo.
-- **Como medir:** comparar a taxa de churn no grupo de clientes que receberam ações de
-  retenção (identificados pelo modelo) versus a taxa de churn histórica ou de um grupo
-  de controle sem intervenção.
-- **Métrica complementar:** **custo de churn evitado** — valor de receita retida ao intervir
-  nos clientes corretamente identificados, descontando o custo das campanhas de retenção
-  (incluindo falsos positivos).
+### 5. Métricas de Sucesso
 
-Esse KPI conecta a performance técnica do modelo ao impacto real no negócio: não basta o
-modelo ter um bom ROC-AUC — ele precisa gerar uma redução mensurável na perda de clientes.
+#### Métricas Técnicas (ML)
 
-### Trade-off Central
-
-| Tipo de Erro | O que acontece | Impacto |
+| Métrica | Por que usar | Meta |
 |---|---|---|
-| **Falso Negativo** | Cliente ia cancelar, modelo não detectou | Perda de receita recorrente |
-| **Falso Positivo** | Cliente não ia cancelar, modelo sinalizou como risco | Custo desnecessário de campanha de retenção |
+| **ROC-AUC** | Mede poder discriminativo independente do threshold | ≥ 0.85 |
+| **F1-Score** | Equilíbrio entre Precision e Recall | ≥ 0.65 |
+| **Recall** | Prioridade: não deixar escapar churns reais | ≥ 0.75 |
 
-A calibração desse equilíbrio depende da estratégia da empresa: se o custo de perder um
-cliente for muito maior que o custo de uma campanha de retenção, faz sentido priorizar
-**recall** (capturar o máximo de churns possível, mesmo com mais falsos alarmes).
+#### Métricas de Negócio (KPIs)
 
-## Dataset
+| KPI | Definição | Meta |
+|---|---|---|
+| **Custo de churn evitado** | (FN × LTV_médio) − (FP × custo_campanha) | Maximizar |
+| **Taxa de churn mensal** | % clientes que cancelaram no mês | Redução ≥ 15% vs. baseline histórico |
+| **Receita retida** | Receita dos clientes salvos pelas campanhas | Medido por grupo de controle |
+| **ROI da campanha** | Receita retida / custo da campanha de retenção | > 3× |
 
-**Telco Customer Churn (IBM)** — dataset com informações de clientes de uma empresa de
-telecomunicações, incluindo dados demográficos, serviços contratados, informações de conta
-e se o cliente cancelou ou não (variável alvo: `Churn`).
+---
+
+### 6. Trade-off FP vs FN (Análise de Custo)
+
+| Erro | O que acontece | Custo |
+|---|---|---|
+| **Falso Negativo (FN)** | Cliente cancela sem ser detectado | Alto — perda do LTV médio (~R$2.080 por cliente) |
+| **Falso Positivo (FP)** | Campanha desnecessária para cliente fiel | Baixo — custo do incentivo/desconto oferecido (~R$50–100) |
+
+#### Fórmula de Custo
+
+```
+Custo_total = (FN × LTV_médio) + (FP × custo_campanha)
+
+Onde:
+  LTV_médio      = Tenure_médio × Monthly_Charges_médio
+                 = 32 meses × R$65 = R$2.080 por cliente perdido
+
+  custo_campanha = custo do incentivo oferecido ao cliente em risco
+                 = estimado em R$50–100 por abordagem
+
+Custo_evitado = (FN_baseline - FN_modelo) × LTV_médio
+              - (FP_modelo × custo_campanha)
+```
+
+**Estratégia:** Maximizar **Recall**, aceitando mais FPs. O custo de perder um cliente real (~R$2.080) é 20–40× maior que o custo de uma campanha desnecessária (~R$50–100). Threshold final calibrado com a equipe de CRM considerando o custo real de cada campanha.
+
+---
+
+### 7. SLOs — Service Level Objectives
+
+| Objetivo | Meta |
+|---|---|
+| **Latência de inferência (API)** | ≤ 200ms por requisição (p99) |
+| **Disponibilidade da API** | ≥ 99.5% uptime |
+| **Frequência de retreinamento** | Trimestral, ou se ROC-AUC cair > 5% |
+| **Drift de dados** | Alerta se distribuição das features mudar > 10% (PSI) |
+| **Cobertura do modelo** | ≥ 99% dos clientes ativos devem receber score |
+
+---
+
+### 8. Riscos e Limitações
+
+| Risco | Mitigação |
+|---|---|
+| **Dataset estático (snapshot Q3 CA)** | Resultados podem não generalizar para outros estados/períodos |
+| **Data leakage** | `Churn Score` e `CLTV` excluídos explicitamente |
+| **Desbalanceamento de classes** | `class_weight='balanced'` na LR; `pos_weight` no MLP |
+| **Viés demográfico** | Monitorar performance separada para Senior Citizens |
+| **Ausência de dados temporais** | `Tenure Months` é proxy — sem histórico de transações |
+| **Features de engenharia em produção** | Transformações devem ser replicadas no pipeline de inferência |
+
+---
+
+### 9. Pipeline de Produção
+
+```
+Dados novos (mensal)
+      ↓
+Validação de Schema (Pandera)
+      ↓
+Feature Engineering
+(monthly_per_tenure, contract_risk_score, services_count,
+ has_protection, is_senior_alone, tenure_group)
+      ↓
+Pré-processamento
+(StandardScaler + OneHotEncoder — ColumnTransformer)
+      ↓
+Seleção de Features (SelectKBest — top 30)
+      ↓
+Inferência (MLP PyTorch / Gradient Boosting / FastAPI)
+      ↓
+Lista de risco → CRM
+      ↓
+Monitoramento (drift, métricas, latência)
+      ↓
+[Gatilho de retreinamento se necessário]
+```
+
+---
 
 ## Arquitetura
-
-<!-- TODO: Será detalhado no Estágio 3 -->
 
 ```
 project-root/
@@ -90,7 +183,7 @@ project-root/
 │   └── api/             # Serviço FastAPI
 ├── data/
 │   ├── raw/             # Dados originais (imutáveis)
-│   └── processed/       # Dados processados
+│   └── processed/       # Dados processados (telco_churn_cleaned.csv)
 ├── models/              # Modelos treinados serializados
 ├── notebooks/           # Análises exploratórias e experimentos
 ├── tests/               # Testes automatizados (pytest)
@@ -100,19 +193,19 @@ project-root/
 └── README.md
 ```
 
+---
+
 ## Como Usar
 
 ### Instalação
 
-<!-- TODO: Será detalhado no Estágio 3 -->
-
 ```bash
 # Clonar o repositório
 git clone <repo-url>
-cd telco-churn
+cd telco-churn-mlp
 
 # Instalar dependências
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ### Treinar o modelo
@@ -139,24 +232,33 @@ make test
 make lint
 ```
 
+---
+
 ## Tecnologias
 
 - **PyTorch** — rede neural (MLP)
-- **Scikit-Learn** — preprocessing pipelines e modelos baseline
+- **Scikit-Learn** — preprocessing pipelines e modelos baseline/ensemble
+- **Scipy** — distribuições para busca de hiperparâmetros
 - **MLflow** — rastreamento de experimentos
 - **FastAPI** — API de inferência
 - **pytest** — testes automatizados
 - **pandera** — validação de schema dos dados
 - **ruff** — linting
 
+---
+
 ## Roadmap
 
-- [x] Definição do problema de negócio
-- [ ] EDA (Análise Exploratória de Dados)
-- [ ] Modelos baseline + MLflow
-- [ ] Rede neural (MLP) com PyTorch
+- [x] Definição do problema de negócio e ML Canvas
+- [x] EDA completa (distribuições, correlações, análise de missing values)
+- [x] Modelos baseline (Dummy + Logistic Regression) + MLflow
+- [x] Feature Engineering (6 novas features, top preditoras)
+- [x] Model Engineering (Decision Tree, Random Forest, SVM, Gradient Boosting + tuning)
+- [ ] Rede neural MLP com PyTorch (em progresso)
+- [ ] Análise de custo FP vs FN nos notebooks
+- [ ] Validação cruzada estratificada no MLP
 - [ ] Refatoração em módulos (`src/`)
-- [ ] Pipeline reprodutível
-- [ ] API de inferência (FastAPI)
-- [ ] Testes automatizados
+- [ ] Pipeline reprodutível (sklearn + transformadores custom)
+- [ ] API de inferência (FastAPI + Pydantic + logging estruturado)
+- [ ] Testes automatizados (smoke, schema, API)
 - [ ] Model Card e documentação final
