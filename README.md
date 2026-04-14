@@ -95,8 +95,8 @@ Random Forest) para referência de performance, todos rastreados com MLflow.
 
 | Erro | O que acontece | Custo |
 |---|---|---|
-| **Falso Negativo (FN)** | Cliente cancela sem ser detectado | Alto — perda do LTV médio (~R$2.080 por cliente) |
-| **Falso Positivo (FP)** | Campanha desnecessária para cliente fiel | Baixo — custo do incentivo/desconto oferecido (~R$50–100) |
+| **Falso Negativo (FN)** | Cliente cancela sem ser detectado | Alto — perda do LTV médio (~R$2.110 por cliente) |
+| **Falso Positivo (FP)** | Campanha desnecessária para cliente fiel | Baixo — custo da abordagem de retenção (~R$75) |
 
 #### Fórmula de Custo
 
@@ -105,16 +105,21 @@ Custo_total = (FN × LTV_médio) + (FP × custo_campanha)
 
 Onde:
   LTV_médio      = Tenure_médio × Monthly_Charges_médio
-                 = 32 meses × R$65 = R$2.080 por cliente perdido
+                 = 32,5 meses × R$64,89 = R$2.110,21 por cliente perdido
 
-  custo_campanha = custo do incentivo oferecido ao cliente em risco
-                 = estimado em R$50–100 por abordagem
+  custo_campanha = R$75,00 por abordagem desnecessária
 
-Custo_evitado = (FN_baseline - FN_modelo) × LTV_médio
-              - (FP_modelo × custo_campanha)
+Razão FN/FP    = 28x — FN é 28 vezes mais caro que FP
 ```
 
-**Estratégia:** Maximizar **Recall**, aceitando mais FPs. O custo de perder um cliente real (~R$2.080) é 20–40× maior que o custo de uma campanha desnecessária (~R$50–100). Threshold final calibrado com a equipe de CRM considerando o custo real de cada campanha.
+**Resultado da análise (03_model_engineering.ipynb, seção 10):**
+
+| Threshold | Recall | Precisão | Custo Total |
+|---|---|---|---|
+| 0,50 (padrão) | ~53% | ~66% | referência |
+| **0,10 (ótimo)** | **94,6%** | 41,8% | **R$78.804** (mínimo) |
+
+**Estratégia:** Maximizar **Recall**, aceitando mais FPs. O custo de perder um cliente real (R$2.110) é **28× maior** que o custo de uma campanha desnecessária (R$75). O threshold ótimo de **0,10** evita 152 churns a mais do que o threshold padrão de 0,5. Threshold final deve ser validado com a equipe de CRM considerando capacidade operacional.
 
 ---
 
@@ -249,16 +254,25 @@ make lint
 
 ## Roadmap
 
+**Estágio 1 — Entendimento e Preparação**
 - [x] Definição do problema de negócio e ML Canvas
-- [x] EDA completa (distribuições, correlações, análise de missing values)
-- [x] Modelos baseline (Dummy + Logistic Regression) + MLflow
-- [x] Feature Engineering (6 novas features, top preditoras)
-- [x] Model Engineering (Decision Tree, Random Forest, SVM, Gradient Boosting + tuning)
-- [ ] Rede neural MLP com PyTorch (em progresso)
-- [ ] Análise de custo FP vs FN nos notebooks
-- [ ] Validação cruzada estratificada no MLP
-- [ ] Refatoração em módulos (`src/`)
+- [x] EDA completa (distribuições, correlações, missing values, análise de churn por segmento)
+- [x] Modelos baseline (Dummy + Logistic Regression) com PR-AUC + MLflow
+
+**Estágio 2 — Modelagem com Redes Neurais**
+- [x] Feature Engineering (6 novas features — top preditoras em importância Gini e permutação)
+- [x] Model Engineering (Decision Tree, Random Forest, SVM, Gradient Boosting + tuning com StratifiedKFold)
+- [x] Rede neural MLP com PyTorch — arquitetura [64, 32], BatchNorm, Dropout, early stopping (epoch 28)
+- [x] Análise de custo FP vs FN — threshold ótimo 0,10 (Recall 94,6%, custo mínimo R$78.804)
+- [x] Comparação final: 6 métricas, 5 modelos — MLP com maior F1 (0,6495) e Recall (0,8136)
+
+**Estágio 3 — Engenharia e API**
+- [ ] Refatoração em módulos (`src/features`, `src/inference`, `src/api`)
 - [ ] Pipeline reprodutível (sklearn + transformadores custom)
-- [ ] API de inferência (FastAPI + Pydantic + logging estruturado)
-- [ ] Testes automatizados (smoke, schema, API)
-- [ ] Model Card e documentação final
+- [ ] API de inferência (FastAPI + Pydantic + logging estruturado + middleware de latência)
+- [ ] Testes automatizados (smoke, schema Pandera, unitários)
+
+**Estágio 4 — Documentação e Entrega**
+- [ ] Model Card (performance, limitações, vieses, cenários de falha)
+- [ ] Plano de monitoramento (métricas, alertas, playbook)
+- [ ] STAR Video (5 min)
