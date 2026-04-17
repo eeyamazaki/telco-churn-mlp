@@ -16,8 +16,8 @@ Diferença de input.py / output.py:
 - Pandera valida DataFrame inteiro (training/batch)
 """
 
-import pandera as pa
-from pandera import Column, DataFrameSchema, Check
+import pandera.pandas as pa
+from pandera.pandas import Column, DataFrameSchema, Check
 
 
 # ── SCHEMA 1: Dados Processados (Após cleaning) ────────────────────
