@@ -35,6 +35,7 @@ dev = [
     "ruff>=0.3",
     "jupyter>=1.0",
     "ipykernel>=6.29",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -67,3 +68,8 @@ known-first-party = ["src"]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --tb=short"
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.1.0",
+]
