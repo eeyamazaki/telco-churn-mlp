@@ -53,25 +53,28 @@ processed_data_schema = DataFrameSchema(
             pa.Int,
             checks=[
                 Check.greater_than_or_equal_to(0),
-                Check.less_than_or_equal_to(120),
+                Check.less_than_or_equal_to(72),
             ],
             nullable=False,
-            description="Meses como cliente (0-120)"
+            description="Meses como cliente (0-72)"
         ),
         
         'Monthly Charges': Column(
             pa.Float,
             checks=[
                 Check.greater_than(0),
-                Check.less_than_or_equal_to(150),
+                Check.less_than_or_equal_to(119),
             ],
             nullable=False,
-            description="Custo mensal em USD (> 0 e <= 150)"
+            description="Custo mensal em USD (> 0 e <= 119)"
         ),
         
         'Total Charges': Column(
             pa.Float,
-            checks=[Check.greater_than_or_equal_to(0)],
+            checks=[
+                Check.greater_than_or_equal_to(0),
+                Check.less_than_or_equal_to(8650)
+            ],
             nullable=False,
             description="Custo total acumulado em USD"
         ),

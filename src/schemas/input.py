@@ -72,21 +72,21 @@ class PredictionInput(BaseModel):
     tenure_months: int = Field(
         ...,
         ge=0,
-        le=120,
-        description="Número de meses como cliente. Max: 120 meses (10 anos).",
+        le=72,
+        description="Número de meses como cliente. Max: 72 meses (6 anos).",
     )
 
     monthly_charges: float = Field(
         ...,
         gt=0,
-        le=150,
+        le=119,
         description="Custo mensal do serviço (USD).",
     )
 
     total_charges: float = Field(
         ...,
         ge=0,
-        le=10000000,
+        le= 8650,
         description="Custo total acumulado (USD).",
     )
 
