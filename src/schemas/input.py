@@ -15,7 +15,7 @@ Pydantic BaseModel
 - Validadores customizados para lógica complexa
 """
 
-from pydantic import BaseModel, Field, field_validator, ValidationInfo
+from pydantic import BaseModel, Field, field_validator, ValidationInfo, model_validator
 from typing import Literal
 
 
@@ -204,37 +204,28 @@ class PredictionInput(BaseModel):
                 )
         return value
 
-    @field_validator("internet_service_type")
-    @classmethod
-    def validate_internet_service_consistency(cls, value: str, info: ValidationInfo) -> str:
+    @model_validator(mode = "after")
+    def validate_internet_service_consistency(self):
         """
         Validação cruzada: Se internet_service_type='No', serviços de internet
         não podem estar marcados como 'Yes'.
         """
-        if value == "No":
-            # Se não tem internet, não pode ter serviços que requerem internet
-            problematic = []
+        if self.internet_service_type == "No":
             
-            if info.data.get("streaming_tv") == "Yes":
-                problematic.append("streaming_tv")
-            if info.data.get("streaming_movies") == "Yes":
-                problematic.append("streaming_movies")
-            if info.data.get("online_security") == "Yes":
-                problematic.append("online_security")
-            if info.data.get("online_backup") == "Yes":
-                problematic.append("online_backup")
-            if info.data.get("device_protection") == "Yes":
-                problematic.append("device_protection")
-            if info.data.get("tech_support") == "Yes":
-                problematic.append("tech_support")
-
+            internet_service_fields = [
+            "streaming_tv", "streaming_movies", "online_security",
+            "online_backup", "device_protection", "tech_support"
+        ]
+            problematic = [feature for feature in internet_service_fields if getattr(self, feature) == 'Yes']
+            
             if problematic:
                 raise ValueError(
                     f"Cliente com internet_service_type='No' não pode ter "
                     f"serviços: {', '.join(problematic)}. "
                     f"Esses serviços requerem internet."
                 )
-        return value
+    
+        return self
     
 
     def to_dict(self) -> dict:
