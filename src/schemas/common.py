@@ -1,360 +1,155 @@
 """
 Schemas Pandera para validação de DataFrames em training/inference batch.
-
-Este módulo define a estrutura esperada de dados em diferentes etapas
-do pipeline:
-1. processed_data_schema: Após limpeza (loaders + cleaning)
-2. engineered_data_schema: Após feature engineering
-
-Schema Validation Pattern:
-- Define contrato de dados para múltiplas etapas
-- Detecta problemas em nível de DataFrame (dimensões, NaN, valores inválidos)
-- Reutilizável em training, testes e batch inference
-
-Diferença de input.py / output.py:
-- Pydantic valida 1 registro por vez (API)
-- Pandera valida DataFrame inteiro (training/batch)
+...
 """
 
 import pandera.pandas as pa
 from pandera.pandas import Column, DataFrameSchema, Check
 
 
-# ── SCHEMA 1: Dados Processados (Após cleaning) ────────────────────
-# Aplicado após: loaders.load_data() + cleaning.clean_all()
-# ANTES de: feature engineering
+# ════════════════════════════════════════════════════════════════════════════════
+# BLOCOS DE COLUNAS REUTILIZÁVEIS (privados)
+# ════════════════════════════════════════════════════════════════════════════════
 
+_BINARY_COLS = {
+    'Senior Citizen': Column(pa.Int, checks=[Check.isin([0, 1])], nullable=False,
+                             description="0=Não sênior, 1=Sênior (já binarizado)"),
+    'Partner':        Column(pa.Int, checks=[Check.isin([0, 1])], nullable=False,
+                             description="0=Sem parceiro, 1=Com parceiro (já binarizado)"),
+    'Dependents':     Column(pa.Int, checks=[Check.isin([0, 1])], nullable=False,
+                             description="0=Sem dependentes, 1=Com dependentes (já binarizado)"),
+    'Phone Service':  Column(pa.Int, checks=[Check.isin([0, 1])], nullable=False,
+                             description="0=Sem serviço, 1=Com serviço (já binarizado)"),
+    'Paperless Billing': Column(pa.Int, checks=[Check.isin([0, 1])], nullable=False,
+                                description="0=Com papel, 1=Eletrônico (já binarizado)"),
+}
+
+# Constraints ESTRITAS — usadas em processed (dados brutos de entrada)
+_NUMERIC_COLS_STRICT = {
+    'Tenure Months': Column(pa.Int, checks=[
+        Check.greater_than_or_equal_to(0),
+        Check.less_than_or_equal_to(72),
+    ], nullable=False, description="Meses como cliente (0-72)"),
+    'Monthly Charges': Column(pa.Float, checks=[
+        Check.greater_than(0),
+        Check.less_than_or_equal_to(119),
+    ], nullable=False, description="Custo mensal em USD (> 0 e <= 119)"),
+    'Total Charges': Column(pa.Float, checks=[
+        Check.greater_than_or_equal_to(0),
+        Check.less_than_or_equal_to(8650),
+    ], nullable=False, description="Custo total acumulado em USD"),
+}
+
+# Constraints RELAXADAS — usadas em engineered (já validado upstream)
+_NUMERIC_COLS_RELAXED = {
+    'Tenure Months':   Column(pa.Int,   checks=[Check.greater_than_or_equal_to(0)], nullable=False),
+    'Monthly Charges': Column(pa.Float, checks=[Check.greater_than(0)],             nullable=False),
+    'Total Charges':   Column(pa.Float, checks=[Check.greater_than_or_equal_to(0)], nullable=False),
+}
+
+_INTERNET_SERVICE_COLS = {
+    'Internet Service Type': Column(pa.String,
+        checks=[Check.isin(['Fiber optic', 'DSL', 'No'])], nullable=False,
+        description="Tipo de internet (validado)"),
+    'Online Security':    Column(pa.String, checks=[Check.isin(['Yes', 'No', 'No internet service'])], nullable=False),
+    'Online Backup':      Column(pa.String, checks=[Check.isin(['Yes', 'No', 'No internet service'])], nullable=False),
+    'Device Protection':  Column(pa.String, checks=[Check.isin(['Yes', 'No', 'No internet service'])], nullable=False),
+    'Tech Support':       Column(pa.String, checks=[Check.isin(['Yes', 'No', 'No internet service'])], nullable=False),
+    'Streaming TV':       Column(pa.String, checks=[Check.isin(['Yes', 'No', 'No internet service'])], nullable=False),
+    'Streaming Movies':   Column(pa.String, checks=[Check.isin(['Yes', 'No', 'No internet service'])], nullable=False),
+}
+
+_CONTRACT_PAYMENT_COLS = {
+    'Contract': Column(pa.String,
+        checks=[Check.isin(['Month-to-month', 'One year', 'Two year'])], nullable=False),
+    'Payment Method': Column(pa.String, checks=[Check.isin([
+        'Electronic check', 'Mailed check',
+        'Bank transfer (automatic)', 'Credit card (automatic)',
+    ])], nullable=False),
+}
+
+_ENGINEERED_FEATURE_COLS = {
+    'services_count':    Column(pa.Int,   checks=[Check.isin([0, 1, 2, 3, 4, 5, 6])],         nullable=False, description="Contagem de serviços opcionais (0-6)"),
+    'tenure_group':      Column(pa.String, checks=[Check.isin(['new', 'growing', 'loyal'])],   nullable=False, description="Faixas de tenure: new(0-12), growing(12-36), loyal(36+)"),
+    'monthly_per_tenure':Column(pa.Float, checks=[Check.greater_than_or_equal_to(0)],          nullable=False, description="Custo mensal normalizado por tenure"),
+    'has_protection':    Column(pa.Int,   checks=[Check.isin([0, 1])],                         nullable=False, description="1 se cliente tem proteção (security OR device)"),
+    'is_senior_alone':   Column(pa.Int,   checks=[Check.isin([0, 1])],                         nullable=False, description="1 se idoso sem parceiro nem dependentes"),
+    'contract_risk_score':Column(pa.Int,  checks=[Check.isin([0, 1, 3])],                      nullable=False, description="0=Two year, 1=One year, 3=Month-to-month"),
+}
+
+_CHURN_VALUE_COL = {
+    'Churn Value': Column(pa.Int, checks=[Check.isin([0, 1])], nullable=False,
+                          description="0=Sem churn, 1=Churn"),
+}
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# SCHEMAS PÚBLICOS
+# ════════════════════════════════════════════════════════════════════════════════
+
+# SCHEMA 1: Dados processados — treinamento (com alvo, constraints estritas)
 processed_data_schema = DataFrameSchema(
-    {
-        # ── Demográficos (já binarizados: 0/1) ─────────────────
-        'Senior Citizen': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="0=Não sênior, 1=Sênior (já binarizado)"
-        ),
-        
-        'Partner': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="0=Sem parceiro, 1=Com parceiro (já binarizado)"
-        ),
-        
-        'Dependents': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="0=Sem dependentes, 1=Com dependentes (já binarizado)"
-        ),
-        
-        # ── Informações de Conta ───────────────────────────────
-        'Tenure Months': Column(
-            pa.Int,
-            checks=[
-                Check.greater_than_or_equal_to(0),
-                Check.less_than_or_equal_to(72),
-            ],
-            nullable=False,
-            description="Meses como cliente (0-72)"
-        ),
-        
-        'Monthly Charges': Column(
-            pa.Float,
-            checks=[
-                Check.greater_than(0),
-                Check.less_than_or_equal_to(119),
-            ],
-            nullable=False,
-            description="Custo mensal em USD (> 0 e <= 119)"
-        ),
-        
-        'Total Charges': Column(
-            pa.Float,
-            checks=[
-                Check.greater_than_or_equal_to(0),
-                Check.less_than_or_equal_to(8650)
-            ],
-            nullable=False,
-            description="Custo total acumulado em USD"
-        ),
-        
-        'Phone Service': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="0=Sem serviço, 1=Com serviço (já binarizado)"
-        ),
-        
-        'Paperless Billing': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="0=Com papel, 1=Eletrônico (já binarizado)"
-        ),
-        
-        # ── Serviços (Yes/No/No internet service) ────────────────
-        # ✅ AGORA com Check.isin() correto!
-        'Internet Service Type': Column(
-            pa.String,
-            checks=[Check.isin(['Fiber optic', 'DSL', 'No'])],
-            nullable=False,
-            description="Tipo de internet (validado)"
-        ),
-        
-        'Online Security': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False,
-            description="Serviço de segurança online (validado)"
-        ),
-        
-        'Online Backup': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False,
-            description="Serviço de backup online (validado)"
-        ),
-        
-        'Device Protection': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False,
-            description="Proteção de dispositivo (validado)"
-        ),
-        
-        'Tech Support': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False,
-            description="Suporte técnico (validado)"
-        ),
-        
-        'Streaming TV': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False,
-            description="Streaming de TV (validado)"
-        ),
-        
-        'Streaming Movies': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False,
-            description="Streaming de filmes (validado)"
-        ),
-        
-        # ── Contrato e Pagamento ───────────────────────────────
-        'Contract': Column(
-            pa.String,
-            checks=[Check.isin(['Month-to-month', 'One year', 'Two year'])],
-            nullable=False,
-            description="Tipo de contrato (validado)"
-        ),
-        
-        'Payment Method': Column(
-            pa.String,
-            checks=[Check.isin([
-                'Electronic check',
-                'Mailed check',
-                'Bank transfer (automatic)',
-                'Credit card (automatic)'
-            ])],
-            nullable=False,
-            description="Método de pagamento (validado)"
-        ),
-        
-        # ── Alvo ────────────────────────────────────────────────
-        'Churn Value': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="0=Sem churn, 1=Churn"
-        ),
-    },
-    strict=True,  # Rejeita colunas extras
-    coerce=False,  # Não converte tipos automaticamente
-    description="Schema para dados após limpeza (antes de feature engineering)"
+    {**_BINARY_COLS, **_NUMERIC_COLS_STRICT, **_INTERNET_SERVICE_COLS,
+     **_CONTRACT_PAYMENT_COLS, **_CHURN_VALUE_COL},
+    strict=True, coerce=False,
+    description="Schema para dados após limpeza — treinamento (com Churn Value)"
 )
 
+# SCHEMA 2: Dados processados — inferência (sem alvo, constraints estritas)
+processed_inference_schema = DataFrameSchema(
+    {**_BINARY_COLS, **_NUMERIC_COLS_STRICT, **_INTERNET_SERVICE_COLS,
+     **_CONTRACT_PAYMENT_COLS},
+    strict=True, coerce=False,
+    description="Schema para dados após limpeza — inferência (sem Churn Value)"
+)
 
-# ── SCHEMA 2: Dados Engineered (Feature Engineering) ────────────────
-# Aplicado após: feature engineering
-# PRONTO para: treinamento do modelo
-
+# SCHEMA 3: Dados engineered — treinamento (com alvo)
 engineered_data_schema = DataFrameSchema(
-    {
-        # ── Features originais (processadas) ─────────────────────
-        'Senior Citizen': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False
-        ),
-        'Partner': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False
-        ),
-        'Dependents': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False
-        ),
-        'Phone Service': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False
-        ),
-        'Paperless Billing': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False
-        ),
-        
-        'Tenure Months': Column(
-            pa.Int,
-            checks=[Check.greater_than_or_equal_to(0)],
-            nullable=False
-        ),
-        'Monthly Charges': Column(
-            pa.Float,
-            checks=[Check.greater_than(0)],
-            nullable=False
-        ),
-        'Total Charges': Column(
-            pa.Float,
-            checks=[Check.greater_than_or_equal_to(0)],
-            nullable=False
-        ),
-        
-        # ── Features categóricas originais (com validação!) ─────
-        'Contract': Column(
-            pa.String,
-            checks=[Check.isin(['Month-to-month', 'One year', 'Two year'])],
-            nullable=False
-        ),
-        'Internet Service Type': Column(
-            pa.String,
-            checks=[Check.isin(['Fiber optic', 'DSL', 'No'])],
-            nullable=False
-        ),
-        'Online Security': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False
-        ),
-        'Online Backup': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False
-        ),
-        'Device Protection': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False
-        ),
-        'Tech Support': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False
-        ),
-        'Streaming TV': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False
-        ),
-        'Streaming Movies': Column(
-            pa.String,
-            checks=[Check.isin(['Yes', 'No', 'No internet service'])],
-            nullable=False
-        ),
-        'Payment Method': Column(
-            pa.String,
-            checks=[Check.isin([
-                'Electronic check',
-                'Mailed check',
-                'Bank transfer (automatic)',
-                'Credit card (automatic)'
-            ])],
-            nullable=False
-        ),
-        
-        # ── NOVAS FEATURES criadas no feature engineering ──────
-        'services_count': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1, 2, 3, 4, 5, 6])],
-            nullable=False,
-            description="Contagem de serviços opcionais (0-6)"
-        ),
-        
-        'tenure_group': Column(
-            pa.String,
-            checks=[Check.isin(['new', 'growing', 'loyal'])],
-            nullable=False,
-            description="Faixas de tenure: new(0-12), growing(12-36), loyal(36+)"
-        ),
-        
-        'monthly_per_tenure': Column(
-            pa.Float,
-            checks=[Check.greater_than_or_equal_to(0)],
-            nullable=False,
-            description="Custo mensal normalizado por tenure"
-        ),
-        
-        'has_protection': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="1 se cliente tem proteção (security OR device)"
-        ),
-        
-        'is_senior_alone': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False,
-            description="1 se idoso sem parceiro nem dependentes"
-        ),
-        
-        'contract_risk_score': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1, 3])],
-            nullable=False,
-            description="0=Two year, 1=One year, 3=Month-to-month"
-        ),
-        
-        # ── Alvo ────────────────────────────────────────────────
-        'Churn Value': Column(
-            pa.Int,
-            checks=[Check.isin([0, 1])],
-            nullable=False
-        ),
-    },
-    strict=True,
-    coerce=False,
-    description="Schema para dados após feature engineering (pronto para treinamento)"
+    {**_BINARY_COLS, **_NUMERIC_COLS_RELAXED, **_INTERNET_SERVICE_COLS,
+     **_CONTRACT_PAYMENT_COLS, **_ENGINEERED_FEATURE_COLS, **_CHURN_VALUE_COL},
+    strict=True, coerce=False,
+    description="Schema para dados após feature engineering — treinamento (com Churn Value)"
+)
+
+# SCHEMA 4: Dados engineered — inferência (sem alvo)
+engineered_inference_schema = DataFrameSchema(
+    {**_BINARY_COLS, **_NUMERIC_COLS_RELAXED, **_INTERNET_SERVICE_COLS,
+     **_CONTRACT_PAYMENT_COLS, **_ENGINEERED_FEATURE_COLS},
+    strict=True, coerce=False,
+    description="Schema para dados após feature engineering — inferência (sem Churn Value)"
 )
 
 
-# ── REGISTRY: Centralize todas as schemas ──────────────────────────
+# ════════════════════════════════════════════════════════════════════════════════
+# REGISTRY
+# ════════════════════════════════════════════════════════════════════════════════
+
 SCHEMA_REGISTRY = {
-    'processed': processed_data_schema,      # Após limpeza
-    'engineered': engineered_data_schema,    # Após features
+    'processed':            processed_data_schema,
+    'processed_inference':  processed_inference_schema,
+    'engineered':           engineered_data_schema,
+    'engineered_inference': engineered_inference_schema,
 }
 
 
 def get_schema(name: str) -> DataFrameSchema:
     """
     Recupera schema pelo nome do registry.
-    
+
     Args:
-        name: 'processed' ou 'engineered'
-        
+        name: Chave do schema. Valores válidos:
+              'processed'           — dados após limpeza (treinamento)
+              'processed_inference' — dados após limpeza (inferência)
+              'engineered'          — dados após feature engineering (treinamento)
+              'engineered_inference'— dados após feature engineering (inferência)
+
     Returns:
-        DataFrameSchema: Schema solicitado
-        
+        DataFrameSchema: Schema solicitado.
+
     Raises:
-        KeyError: Se schema não existe
+        KeyError: Se o nome não existir no SCHEMA_REGISTRY.
     """
+    
     if name not in SCHEMA_REGISTRY:
         raise KeyError(
             f"Schema '{name}' não encontrado. "

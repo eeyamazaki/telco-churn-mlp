@@ -17,7 +17,9 @@ from src.schemas.output import (
 # ── Pandera Schemas (DataFrame) ──────────────────
 from src.schemas.common import (
     processed_data_schema,
+    processed_inference_schema,
     engineered_data_schema,
+    engineered_inference_schema,
     SCHEMA_REGISTRY,
     get_schema,
 )
@@ -31,7 +33,9 @@ __all__ = [
     "HealthResponse",
     # Pandera
     "processed_data_schema",
+    "processed_inference_schema",
     "engineered_data_schema",
+    "engineered_inference_schema",
     "SCHEMA_REGISTRY",
     "get_schema",
 ]
