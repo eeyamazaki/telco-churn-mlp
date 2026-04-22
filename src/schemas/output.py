@@ -70,8 +70,8 @@ class PredictionResponse(BaseModel):
     Esta é a estrutura que será retornada como JSON para o cliente.
     """
     
-    success: bool = Field(
-        ...,
+    success: Literal[True] = Field(
+        default= True,
         description="Indicador de sucesso da requisição"
     )
     
@@ -122,7 +122,7 @@ class ErrorResponse(BaseModel):
     Permite que cliente saiba exatamente o que deu errado.
     """
     
-    success: bool = Field(
+    success: Literal[False] = Field(
         default=False,
         description="Indicador de sucesso (sempre False para erros)"
     )
