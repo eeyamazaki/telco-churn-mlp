@@ -16,7 +16,7 @@ MODELS_DIR = PROJECT_ROOT / "models"
 RANDOM_SEED = 42
 
 # ── Data ──────────────────────────────────────────────
-TARGET_COLUMN = "Churn"
+TARGET_COLUMN = "Churn Value"
 RAW_DATA_FILE = "Telco_customer_churn.xlsx"
 
 # ── Training defaults ─────────────────────────────────
@@ -29,4 +29,4 @@ EARLY_STOPPING_PATIENCE = 10
 
 # ── MLflow ────────────────────────────────────────────
 MLFLOW_EXPERIMENT_NAME = "telco-churn"
-MLFLOW_TRACKING_URI = "mlruns"
+MLFLOW_TRACKING_URI = str(PROJECT_ROOT / "mlruns")
