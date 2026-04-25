@@ -19,6 +19,12 @@ lint-fix: ## Auto-fix lint issues
 test: ## Run all tests
 	pytest tests/
 
+test-cov: ## Run tests with coverage report
+	pytest tests/ --cov=src --cov-report=term-missing
+
+test-count: ## Count total number of tests
+	pytest tests/ --collect-only -q | tail -1
+
 train: ## Train the model
 	python -m src.training.train
 
