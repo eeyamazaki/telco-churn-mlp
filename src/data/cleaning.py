@@ -64,7 +64,7 @@ def convert_total_charges(df: pd.DataFrame) -> pd.DataFrame:
     Raises:
         ValueError: Se a coluna 'Total Charges' não existir no DataFrame.
     """
-    
+
     if 'Total Charges' not in df.columns:
         logger.error('missing required column', column = "Total Charges", available = df.columns.to_list())
         raise ValueError(
@@ -75,7 +75,7 @@ def convert_total_charges(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df['Total Charges'] = pd.to_numeric(df['Total Charges'], errors = 'coerce')
     n_nulls = df["Total Charges"].isna().sum()
-    
+
     logger.info('total_charges converted', nulls_generated = int(n_nulls))
 
     return df
@@ -93,13 +93,13 @@ def drop_nulls(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame sem linhas com 'Total Charges' nulo, com índice reiniciado.
     """
-    
+
     before = len(df)
     df = df.dropna(subset = ["Total Charges"]).reset_index(drop = True)
     dropped = before - len(df)
-    
+
     logger.info('null rows dropped', rows_dropped = dropped, rows_remaining = len(df))
-    
+
     return df
 
 def drop_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -120,14 +120,14 @@ def drop_columns(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame com colunas desnecessárias removidas (33 → 20).
     """
-    
+
     existing = [col for col in _COLS_TO_DROP if col in df.columns]
     df = df.drop(columns=existing)
-    
+
     logger.info('columns dropped', count = len(existing), shape = df.shape)
-    
+
     return df
-    
+
 def drop_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     """Remove linhas com perfil de features idêntico.
 
@@ -140,13 +140,13 @@ def drop_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame sem duplicatas, com índice reiniciado.
     """
-    
+
     before = len(df)
     df = df.drop_duplicates().reset_index(drop = True)
     dropped = before - len(df)
-    
+
     logger.info('duplicate rows dropped', rows_dropped = dropped, rows_remaining = len(df))
-    
+
     return df
 
 def encode_binary_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -164,13 +164,16 @@ def encode_binary_columns(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame com variáveis binárias como int64.
     """
-    
+
     existing = [col for col in _BINARY_COLS if col in df.columns]
     df = df.copy()
-    df[existing] = df[existing].replace({'Yes': 1, 'No': 0}).astype(int)
-    
+
+    df[existing] = df[existing].apply(
+        lambda col: col.map({"Yes": 1, "No": 0}) if col.dtype == object else col
+    ).astype(int)
+
     logger.info("binary columns encoded", columns=existing)
-    
+
     return df
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
@@ -190,7 +193,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame limpo, pronto para o pipeline de features.
         Esperado: ~7.010 linhas × 20 colunas.
     """
-    
+
     logger.info("cleaning started", rows=df.shape[0], cols=df.shape[1])
     df = convert_total_charges(df)
     df = drop_nulls(df)
