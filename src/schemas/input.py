@@ -15,20 +15,21 @@ Pydantic BaseModel
 - Validadores customizados para lógica complexa
 """
 
-from pydantic import BaseModel, Field, field_validator, ValidationInfo, model_validator
 from typing import Literal
+
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 
 class PredictionInput(BaseModel):
     """
     Schema de validação para predição de churn de cliente.
-    
+
     Representa os dados brutos do cliente que serão processados pelo pipeline
     e então enviados ao modelo MLP para inferência.
-    
+
     Todos os campos são obrigatórios (sem defaults).
     Ranges e tipos são validados automaticamente.
-    
+
     Example:
         >>> data = {
         ...     "senior_citizen": "No",
@@ -53,6 +54,11 @@ class PredictionInput(BaseModel):
     """
 
     # ── Demográficos ──────────────────────────────────────────────────
+    gender: Literal["Female", "Male"] = Field(
+        ...,
+        description="Gênero do cliente"
+    )
+
     senior_citizen: Literal["Yes", "No"] = Field(
         ...,
         description="Se o cliente é sênior"
@@ -71,9 +77,9 @@ class PredictionInput(BaseModel):
     # ── Informações de Conta ──────────────────────────────────────────
     tenure_months: int = Field(
         ...,
-        ge=0,
+        ge=1,
         le=72,
-        description="Número de meses como cliente. Max: 72 meses (6 anos).",
+        description="Número de meses como cliente. Min: 1 mês. Max: 72 meses (6 anos). Valores > 72 indicam possível data drift.",
     )
 
     monthly_charges: float = Field(
@@ -95,11 +101,16 @@ class PredictionInput(BaseModel):
         description="Se cliente tem serviço de telefone"
     )
 
+    multiple_lines: Literal["No", "No phone service", "Yes"] = Field(
+        ...,
+        description="Se o cliente tem múltiplas linhas telefônicas"
+    )
+
     paperless_billing: Literal["Yes", "No"] = Field(
         ...,
         description="Se cliente usa fatura eletrônica"
     )
-    
+
     # ── Pagamento ─────────────────────────────────────────────────────
     payment_method: Literal[
         'Electronic check',
@@ -108,7 +119,7 @@ class PredictionInput(BaseModel):
         'Credit card (automatic)'
     ] = Field(
         ...,
-        description="Método de pagamento (nota: apenas 1 categoria foi selecionada no modelo)"
+        description="Método de pagamento"
     )
 
     # ── Serviço de Internet ───────────────────────────────────────────
@@ -158,6 +169,7 @@ class PredictionInput(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
+                "gender": "Female",
                 "senior_citizen": "No",
                 "partner": "Yes",
                 "dependents": "No",
@@ -165,6 +177,7 @@ class PredictionInput(BaseModel):
                 "monthly_charges": 65.5,
                 "total_charges": 1570.0,
                 "phone_service": "Yes",
+                "multiple_lines": "No",
                 "paperless_billing": "No",
                 "payment_method": "Electronic check",
                 "contract": "One year",
@@ -185,9 +198,9 @@ class PredictionInput(BaseModel):
     @classmethod
     def validate_total_vs_monthly(cls, value: float, info: ValidationInfo) -> float:
         """
-        Validação cruzada: total_charges não deve ser muito menor que 
+        Validação cruzada: total_charges não deve ser muito menor que
         monthly_charges * tenure_months.
-        
+
         Racional: Evita inconsistência entre campos correlacionados.
         Permite ~10% de diferença (ajustes, promoções, etc).
         """
@@ -196,7 +209,7 @@ class PredictionInput(BaseModel):
 
         if monthly is not None and tenure is not None:
             expected_min = monthly * tenure * 0.9  # 10% de desconto permitido
-            if value < expected_min and tenure > 1:  # Ignora novos customers (tenure=0)
+            if value < expected_min and tenure > 1:  # Ignora clientes com apenas 1 mês
                 raise ValueError(
                     f"Total charges (${value:.2f}) muito baixo comparado a "
                     f"monthly_charges (${monthly:.2f}) × tenure ({tenure} meses). "
@@ -211,36 +224,36 @@ class PredictionInput(BaseModel):
         não podem estar marcados como 'Yes'.
         """
         if self.internet_service_type == "No":
-            
+
             internet_service_fields = [
             "streaming_tv", "streaming_movies", "online_security",
             "online_backup", "device_protection", "tech_support"
         ]
             problematic = [feature for feature in internet_service_fields if getattr(self, feature) == 'Yes']
-            
+
             if problematic:
                 raise ValueError(
                     f"Cliente com internet_service_type='No' não pode ter "
                     f"serviços: {', '.join(problematic)}. "
                     f"Esses serviços requerem internet."
                 )
-    
+
         return self
-    
+
 
     def to_dict(self) -> dict:
         """
         Converte para dicionário para compatibilidade com sklearn/PyTorch.
-        
+
         Realiza duas transformações:
         1. Converte campos binários de "Yes"/"No" para 1/0
         2. Renomeia campos de snake_case para Title Case (compatível com preprocessor)
-        
+
         Returns:
             dict: Dados prontos para o pipeline de processamento
         """
         data = self.model_dump()
-        
+
         #  ── Transformação 1: Yes/No → 1/0 ──────────────────────────────
         binary_features = [
             'senior_citizen',
@@ -249,14 +262,15 @@ class PredictionInput(BaseModel):
             'phone_service',
             'paperless_billing'
         ]
-        
+
         for feature in binary_features:
             if feature in data:
                 data[feature] = 1 if data[feature] == "Yes" else 0
-                
-         # ── Transformação 2: snake_case → Title Case ───────────────────
+
+        # ── Transformação 2: snake_case → Title Case ───────────────────
         # Mapeamento de nomes do schema para nomes do preprocessor
         column_mapping = {
+            'gender': 'Gender',
             'senior_citizen': 'Senior Citizen',
             'partner': 'Partner',
             'dependents': 'Dependents',
@@ -264,9 +278,10 @@ class PredictionInput(BaseModel):
             'monthly_charges': 'Monthly Charges',
             'total_charges': 'Total Charges',
             'phone_service': 'Phone Service',
+            'multiple_lines': 'Multiple Lines',
             'paperless_billing': 'Paperless Billing',
             'payment_method': 'Payment Method',
-            'internet_service_type': 'Internet Service Type',
+            'internet_service_type': 'Internet Service',
             'contract': 'Contract',
             'online_security': 'Online Security',
             'online_backup': 'Online Backup',
@@ -275,8 +290,8 @@ class PredictionInput(BaseModel):
             'streaming_tv': 'Streaming TV',
             'streaming_movies': 'Streaming Movies',
         }
-        
+
         # Renomear todas as colunas
         data_renamed = {column_mapping.get(key, key): value for key, value in data.items()}
-        
+
         return data_renamed

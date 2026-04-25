@@ -25,7 +25,7 @@ train: ## Train the model
 	python -m src.training.train
 
 run-api: ## Start the FastAPI inference server
-	uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 clean: ## Remove build artifacts and caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

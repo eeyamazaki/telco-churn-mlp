@@ -7,21 +7,20 @@ Schemas para validação de dados (Pydantic e Pandera).
 """
 
 # ── Pydantic Schemas (API) ──────────────────────
-from src.schemas.input import PredictionInput
-from src.schemas.output import (
-    PredictionResponse,
-    ErrorResponse,
-    HealthResponse,
-)
-
 # ── Pandera Schemas (DataFrame) ──────────────────
 from src.schemas.common import (
-    processed_data_schema,
-    processed_inference_schema,
+    SCHEMA_REGISTRY,
     engineered_data_schema,
     engineered_inference_schema,
-    SCHEMA_REGISTRY,
     get_schema,
+    processed_data_schema,
+    processed_inference_schema,
+)
+from src.schemas.input import PredictionInput
+from src.schemas.output import (
+    ErrorResponse,
+    HealthResponse,
+    PredictionResponse,
 )
 
 __all__ = [
