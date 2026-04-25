@@ -17,7 +17,12 @@ from fastapi.responses import JSONResponse
 
 from src.inference import ChurnPredictor
 from src.logger import get_logger
-from src.schemas import ErrorResponse, HealthResponse, PredictionInput, PredictionResponse
+from src.schemas import (
+    ErrorResponse,
+    HealthResponse,
+    PredictionInput,
+    PredictionResponse,
+)
 from src.schemas.output import ChurnPrediction
 
 logger = get_logger(__name__)

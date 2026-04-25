@@ -30,7 +30,6 @@ import sys
 
 import structlog
 
-
 _CONFIGURED = False
 
 
@@ -49,17 +48,17 @@ def setup_logging(level: str = "INFO", json_logs: bool = False) -> None:
             e ambientes de nuvem). Se False, emite formato legível com cores
             (recomendado para desenvolvimento).
     """
-    
+
     global _CONFIGURED
     if _CONFIGURED:
         return
-    
+
     render = (
         structlog.processors.JSONRenderer()
         if json_logs
         else structlog.dev.ConsoleRenderer()
     )
-    
+
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -74,7 +73,7 @@ def setup_logging(level: str = "INFO", json_logs: bool = False) -> None:
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=True,
     )
-    
+
     _CONFIGURED = True
 
 

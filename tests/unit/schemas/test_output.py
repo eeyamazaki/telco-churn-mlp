@@ -7,7 +7,12 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from src.schemas.output import ChurnPrediction, ErrorResponse, HealthResponse, PredictionResponse
+from src.schemas.output import (
+    ChurnPrediction,
+    ErrorResponse,
+    HealthResponse,
+    PredictionResponse,
+)
 
 # ════════════════════════════════════════════════════════════════════════════════
 # FIXTURES

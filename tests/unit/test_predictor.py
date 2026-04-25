@@ -12,8 +12,7 @@ import pandas as pd
 import pytest
 from pandera.errors import SchemaError
 
-from src.inference.predictor import ChurnPredictor, DEFAULT_THRESHOLD
-
+from src.inference.predictor import DEFAULT_THRESHOLD, ChurnPredictor
 
 # ════════════════════════════════════════════════════════════════════════════════
 # FIXTURES
