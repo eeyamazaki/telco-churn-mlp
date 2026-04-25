@@ -16,38 +16,10 @@ Uso típico:
 
 import pandas as pd
 
+from src.config import BINARY_COLS, COLS_TO_DROP
 from src.logger import get_logger
 
 logger = get_logger(__name__)
-
-_COLS_TO_DROP = [
-    # Sem variância — valor único em todo o dataset
-    "Count",
-    "Country",
-    "State",
-    # Identificadores — não carregam sinal preditivo
-    "CustomerID",
-    "Lat Long",
-    # Geolocalização — granularidade excessiva para modelo tabular
-    "Latitude",
-    "Longitude",
-    "Zip Code",
-    "City",
-    # Data leakage — derivados do churn já conhecido
-    "Churn Score",
-    "CLTV",
-    "Churn Reason",
-    # Redundante — duplicata categórica do target numérico
-    "Churn Label",
-]
-
-_BINARY_COLS = [
-    "Senior Citizen",
-    "Partner",
-    "Dependents",
-    "Phone Service",
-    "Paperless Billing",
-]
 
 
 def convert_total_charges(df: pd.DataFrame) -> pd.DataFrame:
@@ -121,7 +93,7 @@ def drop_columns(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame com colunas desnecessárias removidas (33 → 20).
     """
 
-    existing = [col for col in _COLS_TO_DROP if col in df.columns]
+    existing = [col for col in COLS_TO_DROP if col in df.columns]
     df = df.drop(columns=existing)
 
     logger.info('columns dropped', count = len(existing), shape = df.shape)
@@ -165,7 +137,7 @@ def encode_binary_columns(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame com variáveis binárias como int64.
     """
 
-    existing = [col for col in _BINARY_COLS if col in df.columns]
+    existing = [col for col in BINARY_COLS if col in df.columns]
     df = df.copy()
 
     df[existing] = df[existing].apply(

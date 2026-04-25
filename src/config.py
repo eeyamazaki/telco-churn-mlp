@@ -30,3 +30,33 @@ EARLY_STOPPING_PATIENCE = 15
 # ── MLflow ────────────────────────────────────────────
 MLFLOW_EXPERIMENT_NAME = "telco-churn-mlp"
 MLFLOW_TRACKING_URI = str(PROJECT_ROOT / "mlruns")
+
+# ── Feature columns ───────────────────────────────────
+COLS_TO_DROP = [
+    # Sem variância — valor único em todo o dataset
+    "Count",
+    "Country",
+    "State",
+    # Identificadores — não carregam sinal preditivo
+    "CustomerID",
+    "Lat Long",
+    # Geolocalização — granularidade excessiva para modelo tabular
+    "Latitude",
+    "Longitude",
+    "Zip Code",
+    "City",
+    # Data leakage — derivados do churn já conhecido
+    "Churn Score",
+    "CLTV",
+    "Churn Reason",
+    # Redundante — duplicata categórica do target numérico
+    "Churn Label",
+]
+
+BINARY_COLS = [
+    "Senior Citizen",
+    "Partner",
+    "Dependents",
+    "Phone Service",
+    "Paperless Billing",
+]
