@@ -30,6 +30,7 @@ import sys
 
 import structlog
 
+
 _CONFIGURED = False
 
 
@@ -98,5 +99,5 @@ def get_logger(name: str) -> structlog.BoundLogger:
         logger = get_logger(__name__)
         logger.info("treinamento iniciado", epoch=1, lr=0.001)
     """
-    
+
     return structlog.get_logger(name)

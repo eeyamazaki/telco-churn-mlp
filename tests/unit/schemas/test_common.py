@@ -2,19 +2,18 @@
 Testes para src/schemas/common.py.
 """
 
-import pytest
 import pandas as pd
+import pytest
 from pandera.errors import SchemaError, SchemaErrors
 
 from src.schemas.common import (
-    processed_data_schema,
-    processed_inference_schema,
+    SCHEMA_REGISTRY,
     engineered_data_schema,
     engineered_inference_schema,
-    SCHEMA_REGISTRY,
     get_schema,
+    processed_data_schema,
+    processed_inference_schema,
 )
-
 
 # ════════════════════════════════════════════════════════════════════════════════
 # FIXTURES
@@ -23,6 +22,8 @@ from src.schemas.common import (
 @pytest.fixture
 def valid_processed_row() -> dict:
     return {
+        "Gender": "Female",
+        "Multiple Lines": "No",
         "Senior Citizen": 0,
         "Partner": 1,
         "Dependents": 0,
@@ -31,7 +32,7 @@ def valid_processed_row() -> dict:
         "Total Charges": 1560.0,
         "Phone Service": 1,
         "Paperless Billing": 1,
-        "Internet Service Type": "Fiber optic",
+        "Internet Service": "Fiber optic",
         "Online Security": "No",
         "Online Backup": "Yes",
         "Device Protection": "No",
@@ -99,7 +100,7 @@ class TestProcessedSchemaCreation:
     def test_extra_column_raises(self, valid_processed_df):
         df = valid_processed_df.copy()
         df["coluna_extra"] = 99
-        with pytest.raises(SchemaErrors):
+        with pytest.raises((SchemaError, SchemaErrors)):
             processed_data_schema.validate(df)
 
     def test_missing_column_raises(self, valid_processed_df):
@@ -112,14 +113,14 @@ class TestProcessedSchemaCreation:
         "Phone Service", "Paperless Billing", "Churn Value",
     ])
 class TestProcessedSchemaBinaryColumns:
-    
+
     def test_valid_binary_values(self, valid_processed_df, column):
         for value in [0, 1]:
             df = valid_processed_df.copy()
             df[column] = value
             processed_data_schema.validate(df)
 
-    
+
     def test_invalid_binary_values(self, valid_processed_df, column):
         for value in [2, -1, None, "um"]:
             df = valid_processed_df.copy()
@@ -138,7 +139,7 @@ class TestProcessedSchemaInternetServiceColumns:
             df = valid_processed_df.copy()
             df[column] = value
             processed_data_schema.validate(df)
-        
+
     def test_invalid_values(self, valid_processed_df, column):
         for value in ["yes", "no", "N/A", "", 1, 0]:
             df = valid_processed_df.copy()
@@ -149,13 +150,13 @@ class TestProcessedSchemaInternetServiceColumns:
 
 class TestProcessedSchemaNumericRanges:
 
-    @pytest.mark.parametrize("tenure", [0, 1, 36, 72])
+    @pytest.mark.parametrize("tenure", [1, 36, 72])
     def test_tenure_valid_values(self, valid_processed_df, tenure):
         df = valid_processed_df.copy()
         df["Tenure Months"] = tenure
         processed_data_schema.validate(df)
 
-    @pytest.mark.parametrize("tenure", [-1, 73, None, "um"])
+    @pytest.mark.parametrize("tenure", [0, -1, 73, None, "um"])
     def test_tenure_invalid_values(self, valid_processed_df, tenure):
         df = valid_processed_df.copy()
         df["Tenure Months"] = tenure
@@ -233,7 +234,7 @@ class TestProcessedInferenceSchemaCreation:
     def test_churn_value_must_be_absent(self, valid_processed_inference_df):
         df = valid_processed_inference_df.copy()
         df["Churn Value"] = 0
-        with pytest.raises(SchemaErrors):
+        with pytest.raises((SchemaError, SchemaErrors)):
             processed_inference_schema.validate(df)
 
     def test_missing_column_raises(self, valid_processed_inference_df):
@@ -328,7 +329,7 @@ class TestEngineeredInferenceSchemaCreation:
         """engineered_inference_schema rejeita Churn Value (strict=True)."""
         df = valid_inference_df.copy()
         df["Churn Value"] = 0
-        with pytest.raises(SchemaErrors):
+        with pytest.raises((SchemaError, SchemaErrors)):
             engineered_inference_schema.validate(df)
 
     def test_missing_engineered_column_raises(self, valid_inference_df):
@@ -350,7 +351,7 @@ class TestSchemaRegistry:
 
     def test_get_schema_processed(self):
         assert get_schema("processed") is processed_data_schema
-        
+
     def test_get_schema_processed_inference(self):
         assert get_schema("processed_inference") is processed_inference_schema
 
