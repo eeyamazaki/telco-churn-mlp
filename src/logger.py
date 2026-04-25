@@ -11,9 +11,14 @@ import sys
 
 import structlog
 
+_configured = False
+
 
 def setup_logging(level: str = "INFO") -> None:
-    """Configure structlog with console-friendly output."""
+    """Configure structlog with console-friendly output. Idempotente."""
+    global _configured  # noqa: PLW0603
+    if _configured:
+        return
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -28,9 +33,10 @@ def setup_logging(level: str = "INFO") -> None:
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=True,
     )
+    _configured = True
 
 
-def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+def get_logger(name: str) -> structlog.typing.FilteringBoundLogger:
     """Return a named logger. Calls setup_logging on first use."""
     setup_logging()
     return structlog.get_logger(name)

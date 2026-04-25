@@ -5,9 +5,7 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 setup: ## Create virtual environment and install dependencies
-	python -m venv .venv
-	.venv/bin/pip install --upgrade pip
-	.venv/bin/pip install -e ".[dev]"
+	uv sync --all-extras
 	@echo "\n✅ Setup complete. Activate with: source .venv/bin/activate"
 
 lint: ## Run ruff linter and formatter
@@ -25,7 +23,7 @@ train: ## Train the model
 	python -m src.training.train
 
 run-api: ## Start the FastAPI inference server
-	uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 clean: ## Remove build artifacts and caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

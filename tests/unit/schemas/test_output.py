@@ -2,12 +2,12 @@
 Testes para src/schemas/output.py (PredictionResponse, ErrorResponse, HealthResponse).
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
-from src.schemas.output import PredictionResponse, ErrorResponse, HealthResponse, ChurnPrediction
-
+from src.schemas.output import ChurnPrediction, ErrorResponse, HealthResponse, PredictionResponse
 
 # ════════════════════════════════════════════════════════════════════════════════
 # FIXTURES
@@ -100,15 +100,15 @@ class TestChurnPredictionCreation:
         valid_churn_prediction_data["threshold_used"] = invalid_threshold
         with pytest.raises(ValidationError):
             ChurnPrediction(**valid_churn_prediction_data)
-    
+
     @pytest.mark.parametrize("valid_confidence", [0.0, 0.5, 0.90, 0.95, 0.99, 1.0])
-    def test_threshold_valid_values(self, valid_churn_prediction_data, valid_confidence):
+    def test_confidence_valid_values(self, valid_churn_prediction_data, valid_confidence):
         valid_churn_prediction_data["confidence"] = valid_confidence
         pred = ChurnPrediction(**valid_churn_prediction_data)
         assert pred.confidence == valid_confidence
 
     @pytest.mark.parametrize("invalid_confidence", [-0.01, 1.01, "medio", None])
-    def test_threshold_invalid_values(self, valid_churn_prediction_data, invalid_confidence):
+    def test_confidence_invalid_values(self, valid_churn_prediction_data, invalid_confidence):
         valid_churn_prediction_data["confidence"] = invalid_confidence
         with pytest.raises(ValidationError):
             ChurnPrediction(**valid_churn_prediction_data)
@@ -126,12 +126,12 @@ class TestPredictionResponseCreation:
         assert response.success is True
         assert response.model_version == "mlp-64-32-v1"
         assert isinstance(response.prediction, ChurnPrediction)
-        
+
     def test_success_defaults_to_true(self, valid_prediction_response_data):
         del valid_prediction_response_data["success"]
         response = PredictionResponse(**valid_prediction_response_data)
         assert response.success is True
-        
+
     def test_success_cannot_be_false(self, valid_prediction_response_data):
         valid_prediction_response_data["success"] = False
         with pytest.raises(ValidationError):
@@ -186,7 +186,7 @@ class TestErrorResponseCreation:
     def test_success_defaults_to_false(self, valid_error_response_data):
         response = ErrorResponse(**valid_error_response_data)
         assert response.success is False
-        
+
     def test_success_cannot_be_true(self, valid_error_response_data):
         valid_error_response_data["success"] = True
         with pytest.raises(ValidationError):

@@ -4,12 +4,18 @@ Schemas Pandera para validação de DataFrames em training/inference batch.
 """
 
 import pandera.pandas as pa
-from pandera.pandas import Column, DataFrameSchema, Check
-
+from pandera.pandas import Check, Column, DataFrameSchema
 
 # ════════════════════════════════════════════════════════════════════════════════
 # BLOCOS DE COLUNAS REUTILIZÁVEIS (privados)
 # ════════════════════════════════════════════════════════════════════════════════
+
+_CATEGORICAL_COLS = {
+    'Gender': Column(pa.String, checks=[Check.isin(['Female', 'Male'])], nullable=False,
+                     description="Gênero do cliente"),
+    'Multiple Lines': Column(pa.String, checks=[Check.isin(['No', 'No phone service', 'Yes'])], nullable=False,
+                             description="Múltiplas linhas telefônicas"),
+}
 
 _BINARY_COLS = {
     'Senior Citizen': Column(pa.Int, checks=[Check.isin([0, 1])], nullable=False,
@@ -27,9 +33,9 @@ _BINARY_COLS = {
 # Constraints ESTRITAS — usadas em processed (dados brutos de entrada)
 _NUMERIC_COLS_STRICT = {
     'Tenure Months': Column(pa.Int, checks=[
-        Check.greater_than_or_equal_to(0),
+        Check.greater_than_or_equal_to(1),
         Check.less_than_or_equal_to(72),
-    ], nullable=False, description="Meses como cliente (0-72)"),
+    ], nullable=False, description="Meses como cliente (1-72). Valor > 72 indica possível data drift."),
     'Monthly Charges': Column(pa.Float, checks=[
         Check.greater_than(0),
         Check.less_than_or_equal_to(119),
@@ -48,7 +54,7 @@ _NUMERIC_COLS_RELAXED = {
 }
 
 _INTERNET_SERVICE_COLS = {
-    'Internet Service Type': Column(pa.String,
+    'Internet Service': Column(pa.String,
         checks=[Check.isin(['Fiber optic', 'DSL', 'No'])], nullable=False,
         description="Tipo de internet (validado)"),
     'Online Security':    Column(pa.String, checks=[Check.isin(['Yes', 'No', 'No internet service'])], nullable=False),
@@ -89,7 +95,7 @@ _CHURN_VALUE_COL = {
 
 # SCHEMA 1: Dados processados — treinamento (com alvo, constraints estritas)
 processed_data_schema = DataFrameSchema(
-    {**_BINARY_COLS, **_NUMERIC_COLS_STRICT, **_INTERNET_SERVICE_COLS,
+    {**_CATEGORICAL_COLS, **_BINARY_COLS, **_NUMERIC_COLS_STRICT, **_INTERNET_SERVICE_COLS,
      **_CONTRACT_PAYMENT_COLS, **_CHURN_VALUE_COL},
     strict=True, coerce=False,
     description="Schema para dados após limpeza — treinamento (com Churn Value)"
@@ -97,7 +103,7 @@ processed_data_schema = DataFrameSchema(
 
 # SCHEMA 2: Dados processados — inferência (sem alvo, constraints estritas)
 processed_inference_schema = DataFrameSchema(
-    {**_BINARY_COLS, **_NUMERIC_COLS_STRICT, **_INTERNET_SERVICE_COLS,
+    {**_CATEGORICAL_COLS, **_BINARY_COLS, **_NUMERIC_COLS_STRICT, **_INTERNET_SERVICE_COLS,
      **_CONTRACT_PAYMENT_COLS},
     strict=True, coerce=False,
     description="Schema para dados após limpeza — inferência (sem Churn Value)"
@@ -105,7 +111,7 @@ processed_inference_schema = DataFrameSchema(
 
 # SCHEMA 3: Dados engineered — treinamento (com alvo)
 engineered_data_schema = DataFrameSchema(
-    {**_BINARY_COLS, **_NUMERIC_COLS_RELAXED, **_INTERNET_SERVICE_COLS,
+    {**_CATEGORICAL_COLS, **_BINARY_COLS, **_NUMERIC_COLS_RELAXED, **_INTERNET_SERVICE_COLS,
      **_CONTRACT_PAYMENT_COLS, **_ENGINEERED_FEATURE_COLS, **_CHURN_VALUE_COL},
     strict=True, coerce=False,
     description="Schema para dados após feature engineering — treinamento (com Churn Value)"
@@ -113,7 +119,7 @@ engineered_data_schema = DataFrameSchema(
 
 # SCHEMA 4: Dados engineered — inferência (sem alvo)
 engineered_inference_schema = DataFrameSchema(
-    {**_BINARY_COLS, **_NUMERIC_COLS_RELAXED, **_INTERNET_SERVICE_COLS,
+    {**_CATEGORICAL_COLS, **_BINARY_COLS, **_NUMERIC_COLS_RELAXED, **_INTERNET_SERVICE_COLS,
      **_CONTRACT_PAYMENT_COLS, **_ENGINEERED_FEATURE_COLS},
     strict=True, coerce=False,
     description="Schema para dados após feature engineering — inferência (sem Churn Value)"
@@ -149,7 +155,7 @@ def get_schema(name: str) -> DataFrameSchema:
     Raises:
         KeyError: Se o nome não existir no SCHEMA_REGISTRY.
     """
-    
+
     if name not in SCHEMA_REGISTRY:
         raise KeyError(
             f"Schema '{name}' não encontrado. "
