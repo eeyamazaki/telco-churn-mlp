@@ -44,8 +44,12 @@ include = ["src*"]
 
 # ── Ruff ──────────────────────────────────────────────
 [tool.ruff]
-target-version = "py310"
-line-length = 100
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = ["classmethod", "pydantic.validator"]
 
 [tool.ruff.lint]
 select = [
@@ -57,11 +61,18 @@ select = [
     "UP",   # pyupgrade
     "B",    # flake8-bugbear
     "SIM",  # flake8-simplify
+    "C4",     # flake8-comprehensions
 ]
 ignore = ["E501"]  # line length handled by formatter
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.ruff.format]
+# Estilo de aspas
+quote-style = "double"
+# Indentação
+indent-style = "space"
 
 # ── Pytest ────────────────────────────────────────────
 [tool.pytest.ini_options]
