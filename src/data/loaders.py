@@ -1,3 +1,17 @@
+"""Funções de carregamento de dados para o projeto Telco Churn.
+
+Fornece duas funções principais:
+    - load_data: carregamento genérico a partir de qualquer caminho CSV ou XLSX.
+    - load_raw_data: atalho para carregar o arquivo bruto definido em config.py.
+
+Uso típico:
+    from src.data.loaders import load_raw_data
+    df = load_raw_data()
+
+    from src.data.loaders import load_data
+    df = load_data('data/processed/telco_cleaned.csv')
+"""
+
 from pathlib import Path
 
 import pandas as pd
@@ -68,8 +82,8 @@ def load_raw_data() -> pd.DataFrame:
     Exemplo:
         >>> df = load_raw_data()
     """
-    
+
     path = DATA_RAW_DIR / RAW_DATA_FILE
     logger.debug("loading raw data", path = str(path))
-    
+
     return load_data(path)
