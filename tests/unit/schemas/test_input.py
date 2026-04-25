@@ -7,7 +7,6 @@ from pydantic import ValidationError
 
 from src.schemas.input import PredictionInput
 
-
 # ════════════════════════════════════════════════════════════════════════════════
 # FIXTURES
 # ════════════════════════════════════════════════════════════════════════════════
@@ -16,6 +15,7 @@ from src.schemas.input import PredictionInput
 def valid_input_data() -> dict:
     """Dados válidos e realistas para criar PredictionInput."""
     return {
+        "gender": "Female",
         "senior_citizen": "No",
         "partner": "Yes",
         "dependents": "No",
@@ -23,6 +23,7 @@ def valid_input_data() -> dict:
         "monthly_charges": 65.5,
         "total_charges": 1570.0,
         "phone_service": "Yes",
+        "multiple_lines": "No",
         "paperless_billing": "No",
         "payment_method": "Electronic check",
         "contract": "One year",
@@ -46,7 +47,7 @@ class TestPredictionInputCreation:
     def test_create_with_valid_data(self, valid_input_data):
         """Criar PredictionInput com dados válidos."""
         prediction = PredictionInput(**valid_input_data)
-        
+
         assert prediction is not None
         assert prediction.senior_citizen == "No"
         assert prediction.tenure_months == 24
@@ -60,7 +61,7 @@ class TestTenureValidation:
     """Testes para campo 'tenure_months' (0-72)."""
 
     @pytest.mark.parametrize("valid_tenure, total_for_tenure", [
-        (0, 0.0),                    # 0 meses
+        (1, 65.5),                   # 1 mês (mínimo válido)
         (12, 786.0),                 # 65.5 × 12 × 1.0
         (24, 1570.0),                # 65.5 × 24 × 1.0 (fixture original)
         (60, 3537.0),                # 65.5 × 60 × 0.9 (com 10% desconto)
@@ -73,11 +74,11 @@ class TestTenureValidation:
         prediction = PredictionInput(**valid_input_data)
         assert prediction.tenure_months == valid_tenure
 
-    @pytest.mark.parametrize("invalid_value", [-1, 73, 121, 150, "doze", "abc", [1, 2], None])
+    @pytest.mark.parametrize("invalid_value", [0, -1, 73, 121, 150, "doze", "abc", [1, 2], None])
     def test_tenure_invalid_values(self, valid_input_data, invalid_value):
         """Tenure fora do intervalo ou tipo inválido deve lançar ValidationError."""
         valid_input_data["tenure_months"] = invalid_value
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -102,7 +103,7 @@ class TestMonthlyChargesValidation:
     def test_monthly_charges_invalid_values(self, valid_input_data, invalid_value):
         """Monthly charges fora do intervalo ou tipo inválido deve lançar ValidationError."""
         valid_input_data["monthly_charges"] = invalid_value
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -111,7 +112,7 @@ class TestTotalChargesValidation:
     """Testes para campo 'total_charges' (>= 0)."""
 
     @pytest.mark.parametrize("tenure, monthly, valid_total", [
-        (0,  65.5, 0.0),     # tenure=0 → total=0 é válido
+        (1,  65.5, 65.5),    # 1 mês (mínimo): total = monthly ✓
         (2,  50.0, 100.0),   # 50.0 × 2 = 100.0 ✓
         (24, 65.5, 5000.0),  # bem acima do mínimo ✓
     ])
@@ -127,7 +128,7 @@ class TestTotalChargesValidation:
     def test_total_charges_invalid_type(self, valid_input_data, invalid_value):
         """Tipo inválido para total_charges deve lançar ValidationError."""
         valid_input_data["total_charges"] = invalid_value
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -156,7 +157,7 @@ class TestBinaryFieldsValidation:
     def test_senior_citizen_invalid_values(self, valid_input_data, binary_field, invalid_value):
         """Senior citizen com valores inválidos deve lançar ValidationError."""
         valid_input_data[binary_field] = invalid_value
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -186,7 +187,7 @@ class TestContractValidation:
     def test_contract_invalid_values(self, valid_input_data, invalid_value):
         """Valores inválidos de contrato devem lançar ValidationError."""
         valid_input_data["contract"] = invalid_value
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -217,7 +218,7 @@ class TestPaymentMethodValidation:
     def test_payment_method_invalid_values(self, valid_input_data, invalid_value):
         """Métodos de pagamento inválidos devem lançar ValidationError."""
         valid_input_data["payment_method"] = invalid_value
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -240,8 +241,8 @@ class TestInternetServiceValidation:
             ]
             for field in internet_service_fields:
                 valid_input_data[field] = "No internet service"
-            
-        
+
+
         prediction = PredictionInput(**valid_input_data)
         assert prediction.internet_service_type == valid_internet
 
@@ -256,7 +257,7 @@ class TestInternetServiceValidation:
     def test_internet_service_invalid_values(self, valid_input_data, invalid_value):
         """Tipos de internet inválidos devem lançar ValidationError."""
         valid_input_data["internet_service_type"] = invalid_value
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -278,7 +279,7 @@ class TestCrossFieldValidations:
         valid_input_data["monthly_charges"] = monthly
         valid_input_data["tenure_months"] = tenure
         valid_input_data["total_charges"] = total
-        
+
         prediction = PredictionInput(**valid_input_data)
         assert prediction.total_charges == total
 
@@ -292,7 +293,7 @@ class TestCrossFieldValidations:
         valid_input_data["monthly_charges"] = monthly
         valid_input_data["tenure_months"] = tenure
         valid_input_data["total_charges"] = total
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -300,10 +301,10 @@ class TestCrossFieldValidations:
     #     """Clientes novos (tenure=0) ignoram validação de total_charges."""
     #     valid_input_data["tenure_months"] = 0
     #     valid_input_data["total_charges"] = 0.0
-        
+
         # prediction = PredictionInput(**valid_input_data)
         # assert prediction.total_charges == 0.0
-        
+
 
     @pytest.mark.parametrize("service_field", [
         "streaming_tv",
@@ -317,7 +318,7 @@ class TestCrossFieldValidations:
         """Sem internet mas com serviço que requer internet deve lançar erro."""
         valid_input_data["internet_service_type"] = "No"
         valid_input_data[service_field] = "Yes"
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
@@ -333,7 +334,7 @@ class TestToDictConversion:
         """to_dict() retorna dicionário com chaves em Title Case."""
         prediction = PredictionInput(**valid_input_data)
         result_dict = prediction.to_dict()
-        
+
         assert isinstance(result_dict, dict)
         assert "Senior Citizen" in result_dict
         assert "Partner" in result_dict
@@ -359,17 +360,19 @@ class TestToDictConversion:
         valid_input_data[binary_field] = input_value
         prediction = PredictionInput(**valid_input_data)
         result_dict = prediction.to_dict()
-        
+
         assert result_dict[expected_output_key] == expected_value
 
     def test_to_dict_no_snake_case_in_output(self, valid_input_data):
         """Nenhuma chave em snake_case no output (todas em Title Case)."""
         prediction = PredictionInput(**valid_input_data)
         result_dict = prediction.to_dict()
-        
+
         snake_case_keys = [
+            "gender",
             "senior_citizen",
             "phone_service",
+            "multiple_lines",
             "paperless_billing",
             "tenure_months",
             "monthly_charges",
@@ -381,9 +384,9 @@ class TestToDictConversion:
             "device_protection",
             "tech_support",
             "streaming_tv",
-            "streaming_movies"
+            "streaming_movies",
         ]
-        
+
         for snake_key in snake_case_keys:
             assert snake_key not in result_dict
 
@@ -391,17 +394,19 @@ class TestToDictConversion:
         """Output compatível com sklearn (Title Case, tipos int/float/str)."""
         prediction = PredictionInput(**valid_input_data)
         result_dict = prediction.to_dict()
-        
+
         expected_fields = {
+            "Gender": str,
             "Senior Citizen": int,
             "Tenure Months": int,
             "Monthly Charges": float,
             "Total Charges": float,
             "Contract": str,
-            "Internet Service Type": str,
+            "Internet Service": str,
+            "Multiple Lines": str,
             "Payment Method": str,
         }
-        
+
         for field_name, expected_type in expected_fields.items():
             assert field_name in result_dict
             assert isinstance(result_dict[field_name], expected_type)
@@ -424,20 +429,20 @@ class TestErrorHandling:
     def test_missing_required_fields(self, valid_input_data, missing_field):
         """Campos obrigatórios faltando devem lançar ValidationError."""
         del valid_input_data[missing_field]
-        
+
         with pytest.raises(ValidationError):
             PredictionInput(**valid_input_data)
 
     def test_extra_field_ignored(self, valid_input_data):
         """Campo extra desconhecido é ignorado."""
         valid_input_data["extra_unknown_field"] = "something"
-        
+
         prediction = PredictionInput(**valid_input_data)
         result_dict = prediction.to_dict()
-        
+
         assert prediction is not None
         assert "extra_unknown_field" not in result_dict
-        
+
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -451,18 +456,18 @@ class TestCompleteWorkflow:
         """Fluxo completo da API: receber → validar → converter."""
         prediction = PredictionInput(**valid_input_data)
         assert prediction is not None
-        
+
         pipeline_data = prediction.to_dict()
         assert isinstance(pipeline_data, dict)
-        assert len(pipeline_data) == 17
+        assert len(pipeline_data) == 19
         assert all(isinstance(value, (int, float, str)) for value in pipeline_data.values())
 
     def test_round_trip_conversion(self, valid_input_data):
         """Round trip: original → PredictionInput → to_dict()."""
         original_partner = valid_input_data["partner"]
-        
+
         prediction = PredictionInput(**valid_input_data)
         result = prediction.to_dict()
-        
+
         expected_value = 1 if original_partner == "Yes" else 0
         assert result["Partner"] == expected_value
