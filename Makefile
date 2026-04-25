@@ -5,9 +5,7 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 setup: ## Create virtual environment and install dependencies
-	python -m venv .venv
-	.venv/bin/pip install --upgrade pip
-	.venv/bin/pip install -e ".[dev]"
+	uv sync --all-extras
 	@echo "\n✅ Setup complete. Activate with: source .venv/bin/activate"
 
 lint: ## Run ruff linter and formatter
