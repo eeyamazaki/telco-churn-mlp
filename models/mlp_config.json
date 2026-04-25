@@ -1,0 +1,9 @@
+{
+  "input_dim": 49,
+  "hidden_dims": [
+    64,
+    32
+  ],
+  "dropout_rate": 0.3,
+  "threshold": 0.5996
+}
