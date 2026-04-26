@@ -37,7 +37,7 @@ def load_data(path: Path | str) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: DataFrame com os dados carregados
-        
+
     Example:
         >>> df = load_data('data/raw/telco.xlsx')
         >>> df = load_data(Path('data/processed/clean.csv'))

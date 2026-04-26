@@ -32,7 +32,7 @@ def convert_total_charges(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: DataFrame com 'Total Charges' convertido para float64.
-        
+
     Raises:
         ValueError: Se a coluna 'Total Charges' não existir no DataFrame.
     """
