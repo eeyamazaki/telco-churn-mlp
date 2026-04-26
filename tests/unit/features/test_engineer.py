@@ -9,6 +9,7 @@ o transformador é compatível com scikit-learn (fit/transform).
 import pandas as pd
 import pytest
 
+from src.config import OPTIONAL_SERVICES_COLS
 from src.features.engineer import FeatureEngineer
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -66,8 +67,10 @@ class TestSklearnContract:
     def test_fit_nao_altera_dados(self, engineer, base_df):
         """fit() não deve modificar o DataFrame de entrada."""
         original_cols = list(base_df.columns)
+        original_shape = base_df.shape
         engineer.fit(base_df)
         assert list(base_df.columns) == original_cols
+        assert base_df.shape == original_shape
 
     def test_transform_retorna_dataframe(self, engineer, base_df):
         """transform() deve retornar um DataFrame."""
@@ -108,11 +111,7 @@ class TestServicesCount:
     @pytest.mark.parametrize("n_servicos", [1, 2, 3, 4, 5, 6])
     def test_n_servicos_ativos(self, engineer, base_row, n_servicos):
         """n serviços marcados como 'Yes' → services_count == n."""
-        servicos = [
-            "Online Security", "Online Backup", "Device Protection",
-            "Tech Support", "Streaming TV", "Streaming Movies",
-        ]
-        for svc in servicos[:n_servicos]:
+        for svc in OPTIONAL_SERVICES_COLS[:n_servicos]:
             base_row[svc] = "Yes"
         df = pd.DataFrame([base_row])
         result = engineer.transform(df)
@@ -120,8 +119,7 @@ class TestServicesCount:
 
     def test_no_internet_service_nao_conta(self, engineer, base_row):
         """'No internet service' não deve ser contado como serviço ativo."""
-        for svc in ["Online Security", "Online Backup", "Device Protection",
-                    "Tech Support", "Streaming TV", "Streaming Movies"]:
+        for svc in OPTIONAL_SERVICES_COLS:
             base_row[svc] = "No internet service"
         df = pd.DataFrame([base_row])
         result = engineer.transform(df)
