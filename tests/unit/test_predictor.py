@@ -18,6 +18,7 @@ from src.inference.predictor import DEFAULT_THRESHOLD, ChurnPredictor
 # FIXTURES
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture(scope="module")
 def predictor() -> ChurnPredictor:
     """Instância única do predictor para todos os testes — evita recarregar artefatos."""
@@ -27,58 +28,67 @@ def predictor() -> ChurnPredictor:
 @pytest.fixture
 def cliente_alto_risco() -> pd.DataFrame:
     """Cliente com perfil de alto risco: contrato mensal, fiber optic, sem serviços."""
-    return pd.DataFrame([{
-        "Gender": "Female",
-        "Multiple Lines": "No",
-        "Senior Citizen": 0,
-        "Partner": 0,
-        "Dependents": 0,
-        "Tenure Months": 2,
-        "Monthly Charges": 95.0,
-        "Total Charges": 190.0,
-        "Phone Service": 1,
-        "Paperless Billing": 1,
-        "Internet Service": "Fiber optic",
-        "Online Security": "No",
-        "Online Backup": "No",
-        "Device Protection": "No",
-        "Tech Support": "No",
-        "Streaming TV": "No",
-        "Streaming Movies": "No",
-        "Contract": "Month-to-month",
-        "Payment Method": "Electronic check",
-    }])
+    return pd.DataFrame(
+        [
+            {
+                "Gender": "Female",
+                "Multiple Lines": "No",
+                "Senior Citizen": 0,
+                "Partner": 0,
+                "Dependents": 0,
+                "Tenure Months": 2,
+                "Monthly Charges": 95.0,
+                "Total Charges": 190.0,
+                "Phone Service": 1,
+                "Paperless Billing": 1,
+                "Internet Service": "Fiber optic",
+                "Online Security": "No",
+                "Online Backup": "No",
+                "Device Protection": "No",
+                "Tech Support": "No",
+                "Streaming TV": "No",
+                "Streaming Movies": "No",
+                "Contract": "Month-to-month",
+                "Payment Method": "Electronic check",
+            }
+        ]
+    )
 
 
 @pytest.fixture
 def cliente_baixo_risco() -> pd.DataFrame:
     """Cliente com perfil de baixo risco: contrato longo, muitos serviços."""
-    return pd.DataFrame([{
-        "Gender": "Male",
-        "Multiple Lines": "Yes",
-        "Senior Citizen": 0,
-        "Partner": 1,
-        "Dependents": 1,
-        "Tenure Months": 60,
-        "Monthly Charges": 85.0,
-        "Total Charges": 5100.0,
-        "Phone Service": 1,
-        "Paperless Billing": 0,
-        "Internet Service": "DSL",
-        "Online Security": "Yes",
-        "Online Backup": "Yes",
-        "Device Protection": "Yes",
-        "Tech Support": "Yes",
-        "Streaming TV": "No",
-        "Streaming Movies": "No",
-        "Contract": "Two year",
-        "Payment Method": "Bank transfer (automatic)",
-    }])
+    return pd.DataFrame(
+        [
+            {
+                "Gender": "Male",
+                "Multiple Lines": "Yes",
+                "Senior Citizen": 0,
+                "Partner": 1,
+                "Dependents": 1,
+                "Tenure Months": 60,
+                "Monthly Charges": 85.0,
+                "Total Charges": 5100.0,
+                "Phone Service": 1,
+                "Paperless Billing": 0,
+                "Internet Service": "DSL",
+                "Online Security": "Yes",
+                "Online Backup": "Yes",
+                "Device Protection": "Yes",
+                "Tech Support": "Yes",
+                "Streaming TV": "No",
+                "Streaming Movies": "No",
+                "Contract": "Two year",
+                "Payment Method": "Bank transfer (automatic)",
+            }
+        ]
+    )
 
 
 # ════════════════════════════════════════════════════════════════════════════════
 # INICIALIZAÇÃO
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestChurnPredictorInit:
     """Verifica que o predictor carrega os artefatos e o threshold corretamente."""
@@ -99,6 +109,7 @@ class TestChurnPredictorInit:
 # ════════════════════════════════════════════════════════════════════════════════
 # predict() — estrutura do retorno
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestPredictOutput:
     """Verifica que predict() retorna um DataFrame com a estrutura correta."""
@@ -125,6 +136,7 @@ class TestPredictOutput:
 # ════════════════════════════════════════════════════════════════════════════════
 # predict() — valores
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestPredictValues:
     """Verifica que os valores retornados são semanticamente corretos."""
@@ -163,16 +175,21 @@ class TestPredictValues:
 # predict() — batch
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestPredictBatch:
     """Verifica inferência em lote (múltiplos clientes)."""
 
-    def test_batch_retorna_linhas_corretas(self, predictor, cliente_alto_risco, cliente_baixo_risco):
+    def test_batch_retorna_linhas_corretas(
+        self, predictor, cliente_alto_risco, cliente_baixo_risco
+    ):
         """Batch com 2 clientes deve retornar 2 linhas."""
         batch = pd.concat([cliente_alto_risco, cliente_baixo_risco], ignore_index=True)
         result = predictor.predict(batch)
         assert len(result) == 2
 
-    def test_batch_todas_probabilidades_validas(self, predictor, cliente_alto_risco, cliente_baixo_risco):
+    def test_batch_todas_probabilidades_validas(
+        self, predictor, cliente_alto_risco, cliente_baixo_risco
+    ):
         batch = pd.concat([cliente_alto_risco, cliente_baixo_risco], ignore_index=True)
         result = predictor.predict(batch)
         assert (result["churn_probability"] >= 0.0).all()
@@ -182,6 +199,7 @@ class TestPredictBatch:
 # ════════════════════════════════════════════════════════════════════════════════
 # predict_single()
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestPredictSingle:
     """Verifica o atalho de inferência para um único cliente via dicionário."""
@@ -209,6 +227,7 @@ class TestPredictSingle:
 # Validação de schema — erros esperados
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestSchemaValidation:
     """O predictor deve rejeitar DataFrames inválidos antes de chegar no modelo."""
 
@@ -224,13 +243,17 @@ class TestSchemaValidation:
         with pytest.raises(SchemaError):
             predictor.predict(df_invalido)
 
-    def test_tenure_acima_limite_levanta_schema_error(self, predictor, cliente_alto_risco):
+    def test_tenure_acima_limite_levanta_schema_error(
+        self, predictor, cliente_alto_risco
+    ):
         df_invalido = cliente_alto_risco.copy()
         df_invalido["Tenure Months"] = 73
         with pytest.raises(SchemaError):
             predictor.predict(df_invalido)
 
-    def test_contrato_invalido_levanta_schema_error(self, predictor, cliente_alto_risco):
+    def test_contrato_invalido_levanta_schema_error(
+        self, predictor, cliente_alto_risco
+    ):
         df_invalido = cliente_alto_risco.copy()
         df_invalido["Contract"] = "Semestral"
         with pytest.raises(SchemaError):

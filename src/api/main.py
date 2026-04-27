@@ -40,6 +40,7 @@ _MODEL_VERSION = "mlp-v1"
 
 # ── Middleware de latência ────────────────────────────────────────────────────
 
+
 @app.middleware("http")
 async def latency_middleware(request: Request, call_next):
     """Loga método, path, status e duração de cada requisição."""
@@ -57,6 +58,7 @@ async def latency_middleware(request: Request, call_next):
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @app.get("/health", response_model=HealthResponse, tags=["ops"])
 def health() -> HealthResponse:
@@ -99,6 +101,7 @@ def predict(customer: PredictionInput) -> PredictionResponse:
 
 
 # ── Handlers de erros ─────────────────────────────────────────────────────────
+
 
 @app.exception_handler(pa.errors.SchemaError)
 async def schema_error_handler(request: Request, exc: pa.errors.SchemaError):

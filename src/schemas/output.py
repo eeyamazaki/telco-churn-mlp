@@ -24,29 +24,19 @@ class ChurnPrediction(BaseModel):
     """
 
     churn_probability: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Probabilidade de churn (0.0 a 1.0)"
+        ..., ge=0.0, le=1.0, description="Probabilidade de churn (0.0 a 1.0)"
     )
 
     prediction: Literal["No Churn", "Churn"] = Field(
-        ...,
-        description="Classe predita: Churn ou No Churn"
+        ..., description="Classe predita: Churn ou No Churn"
     )
 
     threshold_used: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Threshold de decisão aplicado (ex: 0.37)"
+        ..., ge=0.0, le=1.0, description="Threshold de decisão aplicado (ex: 0.37)"
     )
 
     confidence: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Nível de confiança da predição (0.0 a 1.0)"
+        ..., ge=0.0, le=1.0, description="Nível de confiança da predição (0.0 a 1.0)"
     )
 
     model_config = {
@@ -55,7 +45,7 @@ class ChurnPrediction(BaseModel):
                 "churn_probability": 0.73,
                 "prediction": "Churn",
                 "threshold_used": 0.37,
-                "confidence": 0.73
+                "confidence": 0.73,
             }
         }
     }
@@ -72,29 +62,21 @@ class PredictionResponse(BaseModel):
     """
 
     success: Literal[True] = Field(
-        default= True,
-        description="Indicador de sucesso da requisição"
+        default=True, description="Indicador de sucesso da requisição"
     )
 
     prediction: ChurnPrediction = Field(
-        ...,
-        description="Dados da predição (probabilidade, classe, threshold)"
+        ..., description="Dados da predição (probabilidade, classe, threshold)"
     )
 
-    timestamp: datetime = Field(
-        ...,
-        description="Data e hora da predição (ISO 8601)"
-    )
+    timestamp: datetime = Field(..., description="Data e hora da predição (ISO 8601)")
 
     model_version: str = Field(
-        ...,
-        description="Versão do modelo usado (ex: mlp-64-32-v1)"
+        ..., description="Versão do modelo usado (ex: mlp-64-32-v1)"
     )
 
     latency_ms: float | None = Field(
-        None,
-        ge=0,
-        description="Tempo de processamento em milissegundos (opcional)"
+        None, ge=0, description="Tempo de processamento em milissegundos (opcional)"
     )
 
     model_config = {
@@ -105,11 +87,11 @@ class PredictionResponse(BaseModel):
                     "churn_probability": 0.73,
                     "prediction": "Churn",
                     "threshold_used": 0.37,
-                    "confidence": 0.73
+                    "confidence": 0.73,
                 },
                 "timestamp": "2026-04-16T14:30:00",
                 "model_version": "mlp-64-32-v1",
-                "latency_ms": 145.2
+                "latency_ms": 145.2,
             }
         }
     }
@@ -124,28 +106,21 @@ class ErrorResponse(BaseModel):
     """
 
     success: Literal[False] = Field(
-        default=False,
-        description="Indicador de sucesso (sempre False para erros)"
+        default=False, description="Indicador de sucesso (sempre False para erros)"
     )
 
     error_code: str = Field(
-        ...,
-        description="Código do erro (ex: VALIDATION_ERROR, INFERENCE_ERROR)"
+        ..., description="Código do erro (ex: VALIDATION_ERROR, INFERENCE_ERROR)"
     )
 
     error_message: str = Field(
-        ...,
-        description="Mensagem descritiva do erro em linguagem natural"
+        ..., description="Mensagem descritiva do erro em linguagem natural"
     )
 
-    timestamp: datetime = Field(
-        ...,
-        description="Data e hora do erro (ISO 8601)"
-    )
+    timestamp: datetime = Field(..., description="Data e hora do erro (ISO 8601)")
 
     details: dict | None = Field(
-        None,
-        description="Detalhes adicionais do erro (opcional)"
+        None, description="Detalhes adicionais do erro (opcional)"
     )
 
     model_config = {
@@ -158,8 +133,8 @@ class ErrorResponse(BaseModel):
                 "details": {
                     "field": "tenure_months",
                     "value": 150,
-                    "constraint": "le=120"
-                }
+                    "constraint": "le=120",
+                },
             }
         }
     }
@@ -173,18 +148,13 @@ class HealthResponse(BaseModel):
     """
 
     status: Literal["ok", "degraded", "error"] = Field(
-        ...,
-        description="Status do serviço"
+        ..., description="Status do serviço"
     )
 
-    timestamp: datetime = Field(
-        ...,
-        description="Timestamp da verificação"
-    )
+    timestamp: datetime = Field(..., description="Timestamp da verificação")
 
     model_version: str | None = Field(
-        None,
-        description="Versão do modelo carregado (se disponível)"
+        None, description="Versão do modelo carregado (se disponível)"
     )
 
     model_config = {
@@ -192,7 +162,7 @@ class HealthResponse(BaseModel):
             "example": {
                 "status": "ok",
                 "timestamp": "2026-04-16T14:30:00",
-                "model_version": "mlp-64-32-v1"
+                "model_version": "mlp-64-32-v1",
             }
         }
     }

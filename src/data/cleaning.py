@@ -37,20 +37,25 @@ def convert_total_charges(df: pd.DataFrame) -> pd.DataFrame:
         ValueError: Se a coluna 'Total Charges' não existir no DataFrame.
     """
 
-    if 'Total Charges' not in df.columns:
-        logger.error('missing required column', column = "Total Charges", available = df.columns.to_list())
+    if "Total Charges" not in df.columns:
+        logger.error(
+            "missing required column",
+            column="Total Charges",
+            available=df.columns.to_list(),
+        )
         raise ValueError(
             f"Coluna 'Total Charges' não encontrada.\n"
             f"Colunas disponíveis: {df.columns.to_list()}"
         )
 
     df = df.copy()
-    df['Total Charges'] = pd.to_numeric(df['Total Charges'], errors = 'coerce')
+    df["Total Charges"] = pd.to_numeric(df["Total Charges"], errors="coerce")
     n_nulls = df["Total Charges"].isna().sum()
 
-    logger.info('total_charges converted', nulls_generated = int(n_nulls))
+    logger.info("total_charges converted", nulls_generated=int(n_nulls))
 
     return df
+
 
 def drop_nulls(df: pd.DataFrame) -> pd.DataFrame:
     """Remove registros com 'Total Charges' nulo.
@@ -67,12 +72,13 @@ def drop_nulls(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     before = len(df)
-    df = df.dropna(subset = ["Total Charges"]).reset_index(drop = True)
+    df = df.dropna(subset=["Total Charges"]).reset_index(drop=True)
     dropped = before - len(df)
 
-    logger.info('null rows dropped', rows_dropped = dropped, rows_remaining = len(df))
+    logger.info("null rows dropped", rows_dropped=dropped, rows_remaining=len(df))
 
     return df
+
 
 def drop_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Remove colunas sem valor preditivo para o modelo de churn.
@@ -96,9 +102,10 @@ def drop_columns(df: pd.DataFrame) -> pd.DataFrame:
     existing = [col for col in COLS_TO_DROP if col in df.columns]
     df = df.drop(columns=existing)
 
-    logger.info('columns dropped', count = len(existing), shape = df.shape)
+    logger.info("columns dropped", count=len(existing), shape=df.shape)
 
     return df
+
 
 def drop_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     """Remove linhas com perfil de features idêntico.
@@ -114,12 +121,13 @@ def drop_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     before = len(df)
-    df = df.drop_duplicates().reset_index(drop = True)
+    df = df.drop_duplicates().reset_index(drop=True)
     dropped = before - len(df)
 
-    logger.info('duplicate rows dropped', rows_dropped = dropped, rows_remaining = len(df))
+    logger.info("duplicate rows dropped", rows_dropped=dropped, rows_remaining=len(df))
 
     return df
+
 
 def encode_binary_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Converte variáveis binárias Yes/No para inteiros 1/0.
@@ -140,13 +148,16 @@ def encode_binary_columns(df: pd.DataFrame) -> pd.DataFrame:
     existing = [col for col in BINARY_COLS if col in df.columns]
     df = df.copy()
 
-    df[existing] = df[existing].apply(
-        lambda col: col.map({"Yes": 1, "No": 0}) if col.dtype == object else col
-    ).astype(int)
+    df[existing] = (
+        df[existing]
+        .apply(lambda col: col.map({"Yes": 1, "No": 0}) if col.dtype == object else col)
+        .astype(int)
+    )
 
     logger.info("binary columns encoded", columns=existing)
 
     return df
+
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
     """Pipeline de limpeza completo dos dados brutos do Telco dataset.

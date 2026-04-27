@@ -74,7 +74,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         df = self._add_is_senior_alone(df)
         df = self._add_contract_risk_score(df)
 
-        logger.info("feature engineering finished", new_cols = df.shape[1] - x.shape[1])
+        logger.info("feature engineering finished", new_cols=df.shape[1] - x.shape[1])
 
         return df
 
@@ -84,7 +84,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         Hipótese: mais serviços → maior lock-in → menor churn.
         """
         df["services_count"] = df[OPTIONAL_SERVICES_COLS].apply(
-            lambda row: (row == "Yes").sum(), axis = 1
+            lambda row: (row == "Yes").sum(), axis=1
         )
         return df
 
@@ -96,8 +96,8 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         """
         df["tenure_group"] = pd.cut(
             df["Tenure Months"],
-            bins = [-1, 12, 36, 72],
-            labels = ["new", "growing", "loyal"],
+            bins=[-1, 12, 36, 72],
+            labels=["new", "growing", "loyal"],
         ).astype(str)
         return df
 
@@ -127,9 +127,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         Hipótese: EDA mostrou 42% de churn em idosos — isolamento amplifica o risco.
         """
         df["is_senior_alone"] = (
-            (df["Senior Citizen"] == 1)
-            & (df["Dependents"] == 0)
-            & (df["Partner"] == 0)
+            (df["Senior Citizen"] == 1) & (df["Dependents"] == 0) & (df["Partner"] == 0)
         ).astype(int)
         return df
 

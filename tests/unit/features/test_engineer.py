@@ -16,6 +16,7 @@ from src.features.engineer import FeatureEngineer
 # FIXTURE BASE
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def base_row() -> dict:
     """Linha base válida com todas as colunas exigidas pelo FeatureEngineer."""
@@ -55,6 +56,7 @@ def engineer() -> FeatureEngineer:
 # ════════════════════════════════════════════════════════════════════════════════
 # CONTRATO SKLEARN
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestSklearnContract:
     """Garante compatibilidade com a API do scikit-learn."""
@@ -100,6 +102,7 @@ class TestSklearnContract:
 # FEATURE 1: services_count
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestServicesCount:
     """services_count: contagem de serviços opcionais ativos (0–6)."""
 
@@ -130,17 +133,21 @@ class TestServicesCount:
 # FEATURE 2: tenure_group
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestTenureGroup:
     """tenure_group: new (1-12), growing (13-36), loyal (37-72)."""
 
-    @pytest.mark.parametrize("tenure, grupo_esperado", [
-        (1,  "new"),
-        (12, "new"),
-        (13, "growing"),
-        (36, "growing"),
-        (37, "loyal"),
-        (72, "loyal"),
-    ])
+    @pytest.mark.parametrize(
+        "tenure, grupo_esperado",
+        [
+            (1, "new"),
+            (12, "new"),
+            (13, "growing"),
+            (36, "growing"),
+            (37, "loyal"),
+            (72, "loyal"),
+        ],
+    )
     def test_grupos_corretos(self, engineer, base_row, tenure, grupo_esperado):
         base_row["Tenure Months"] = tenure
         df = pd.DataFrame([base_row])
@@ -157,14 +164,18 @@ class TestTenureGroup:
 # FEATURE 3: monthly_per_tenure
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestMonthlyPerTenure:
     """monthly_per_tenure: Monthly Charges / (Tenure Months + 1)."""
 
-    @pytest.mark.parametrize("monthly, tenure, esperado", [
-        (60.0, 11,  5.0),    # 60 / 12 = 5.0
-        (60.0,  1, 30.0),    # 60 / 2 = 30.0
-        (72.0, 23,  3.0),    # 72 / 24 = 3.0
-    ])
+    @pytest.mark.parametrize(
+        "monthly, tenure, esperado",
+        [
+            (60.0, 11, 5.0),  # 60 / 12 = 5.0
+            (60.0, 1, 30.0),  # 60 / 2 = 30.0
+            (72.0, 23, 3.0),  # 72 / 24 = 3.0
+        ],
+    )
     def test_calculo_correto(self, engineer, base_row, monthly, tenure, esperado):
         base_row["Monthly Charges"] = monthly
         base_row["Tenure Months"] = tenure
@@ -183,6 +194,7 @@ class TestMonthlyPerTenure:
 # ════════════════════════════════════════════════════════════════════════════════
 # FEATURE 4: has_protection
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestHasProtection:
     """has_protection: 1 se Online Security='Yes' OU Device Protection='Yes'."""
@@ -217,18 +229,24 @@ class TestHasProtection:
 # FEATURE 5: is_senior_alone
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestIsSeniorAlone:
     """is_senior_alone: 1 apenas se Senior=1, Partner=0, Dependents=0."""
 
-    @pytest.mark.parametrize("senior, partner, dependents, esperado", [
-        (1, 0, 0, 1),   # idoso sem suporte → 1
-        (1, 1, 0, 0),   # idoso com parceiro → 0
-        (1, 0, 1, 0),   # idoso com dependentes → 0
-        (1, 1, 1, 0),   # idoso com família → 0
-        (0, 0, 0, 0),   # não idoso → sempre 0
-        (0, 1, 0, 0),
-    ])
-    def test_combinacoes(self, engineer, base_row, senior, partner, dependents, esperado):
+    @pytest.mark.parametrize(
+        "senior, partner, dependents, esperado",
+        [
+            (1, 0, 0, 1),  # idoso sem suporte → 1
+            (1, 1, 0, 0),  # idoso com parceiro → 0
+            (1, 0, 1, 0),  # idoso com dependentes → 0
+            (1, 1, 1, 0),  # idoso com família → 0
+            (0, 0, 0, 0),  # não idoso → sempre 0
+            (0, 1, 0, 0),
+        ],
+    )
+    def test_combinacoes(
+        self, engineer, base_row, senior, partner, dependents, esperado
+    ):
         base_row["Senior Citizen"] = senior
         base_row["Partner"] = partner
         base_row["Dependents"] = dependents
@@ -240,14 +258,18 @@ class TestIsSeniorAlone:
 # FEATURE 6: contract_risk_score
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestContractRiskScore:
     """contract_risk_score: Month-to-month=3, One year=1, Two year=0."""
 
-    @pytest.mark.parametrize("contrato, score_esperado", [
-        ("Month-to-month", 3),
-        ("One year",       1),
-        ("Two year",       0),
-    ])
+    @pytest.mark.parametrize(
+        "contrato, score_esperado",
+        [
+            ("Month-to-month", 3),
+            ("One year", 1),
+            ("Two year", 0),
+        ],
+    )
     def test_scores_corretos(self, engineer, base_row, contrato, score_esperado):
         base_row["Contract"] = contrato
         result = engineer.transform(pd.DataFrame([base_row]))
@@ -258,13 +280,18 @@ class TestContractRiskScore:
 # PROCESSAMENTO EM BATCH
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestBatchProcessing:
     """Garante que o transformador funciona corretamente com múltiplas linhas."""
 
     def test_multiplas_linhas(self, engineer, base_row):
         """transform() deve processar múltiplas linhas corretamente."""
         rows = []
-        for contrato, _score in [("Month-to-month", 3), ("One year", 1), ("Two year", 0)]:
+        for contrato, _score in [
+            ("Month-to-month", 3),
+            ("One year", 1),
+            ("Two year", 0),
+        ]:
             row = base_row.copy()
             row["Contract"] = contrato
             rows.append(row)

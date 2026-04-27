@@ -18,6 +18,7 @@ from src.schemas.output import (
 # FIXTURES
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def valid_churn_prediction_data() -> dict:
     return {
@@ -62,6 +63,7 @@ def valid_health_response_data() -> dict:
 # ChurnPrediction
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestChurnPredictionCreation:
     """Testes para criação de ChurnPrediction."""
 
@@ -71,13 +73,17 @@ class TestChurnPredictionCreation:
         assert pred.prediction == "Churn"
 
     @pytest.mark.parametrize("valid_prob", [0.0, 0.01, 0.5, 0.99, 1.0])
-    def test_churn_probability_valid_values(self, valid_churn_prediction_data, valid_prob):
+    def test_churn_probability_valid_values(
+        self, valid_churn_prediction_data, valid_prob
+    ):
         valid_churn_prediction_data["churn_probability"] = valid_prob
         pred = ChurnPrediction(**valid_churn_prediction_data)
         assert pred.churn_probability == valid_prob
 
     @pytest.mark.parametrize("invalid_prob", [-0.01, 1.01, 2.0, "alto", None, [1, 2]])
-    def test_churn_probability_invalid_values(self, valid_churn_prediction_data, invalid_prob):
+    def test_churn_probability_invalid_values(
+        self, valid_churn_prediction_data, invalid_prob
+    ):
         valid_churn_prediction_data["churn_probability"] = invalid_prob
         with pytest.raises(ValidationError):
             ChurnPrediction(**valid_churn_prediction_data)
@@ -101,19 +107,25 @@ class TestChurnPredictionCreation:
         assert pred.threshold_used == valid_threshold
 
     @pytest.mark.parametrize("invalid_threshold", [-0.01, 1.01, "medio", None])
-    def test_threshold_invalid_values(self, valid_churn_prediction_data, invalid_threshold):
+    def test_threshold_invalid_values(
+        self, valid_churn_prediction_data, invalid_threshold
+    ):
         valid_churn_prediction_data["threshold_used"] = invalid_threshold
         with pytest.raises(ValidationError):
             ChurnPrediction(**valid_churn_prediction_data)
 
     @pytest.mark.parametrize("valid_confidence", [0.0, 0.5, 0.90, 0.95, 0.99, 1.0])
-    def test_confidence_valid_values(self, valid_churn_prediction_data, valid_confidence):
+    def test_confidence_valid_values(
+        self, valid_churn_prediction_data, valid_confidence
+    ):
         valid_churn_prediction_data["confidence"] = valid_confidence
         pred = ChurnPrediction(**valid_churn_prediction_data)
         assert pred.confidence == valid_confidence
 
     @pytest.mark.parametrize("invalid_confidence", [-0.01, 1.01, "medio", None])
-    def test_confidence_invalid_values(self, valid_churn_prediction_data, invalid_confidence):
+    def test_confidence_invalid_values(
+        self, valid_churn_prediction_data, invalid_confidence
+    ):
         valid_churn_prediction_data["confidence"] = invalid_confidence
         with pytest.raises(ValidationError):
             ChurnPrediction(**valid_churn_prediction_data)
@@ -122,6 +134,7 @@ class TestChurnPredictionCreation:
 # ════════════════════════════════════════════════════════════════════════════════
 # PredictionResponse
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestPredictionResponseCreation:
     """Testes para criação de PredictionResponse."""
@@ -148,19 +161,27 @@ class TestPredictionResponseCreation:
         assert response.latency_ms is None
 
     @pytest.mark.parametrize("valid_latency", [0.0, 50.0, 1000.0])
-    def test_latency_ms_valid_values(self, valid_prediction_response_data, valid_latency):
+    def test_latency_ms_valid_values(
+        self, valid_prediction_response_data, valid_latency
+    ):
         valid_prediction_response_data["latency_ms"] = valid_latency
         response = PredictionResponse(**valid_prediction_response_data)
         assert response.latency_ms == valid_latency
 
     @pytest.mark.parametrize("invalid_latency", [-1.0, "rapido"])
-    def test_latency_ms_invalid_values(self, valid_prediction_response_data, invalid_latency):
+    def test_latency_ms_invalid_values(
+        self, valid_prediction_response_data, invalid_latency
+    ):
         valid_prediction_response_data["latency_ms"] = invalid_latency
         with pytest.raises(ValidationError):
             PredictionResponse(**valid_prediction_response_data)
 
-    @pytest.mark.parametrize("missing_field", ["prediction", "timestamp", "model_version"])
-    def test_missing_required_fields(self, valid_prediction_response_data, missing_field):
+    @pytest.mark.parametrize(
+        "missing_field", ["prediction", "timestamp", "model_version"]
+    )
+    def test_missing_required_fields(
+        self, valid_prediction_response_data, missing_field
+    ):
         del valid_prediction_response_data[missing_field]
         with pytest.raises(ValidationError):
             PredictionResponse(**valid_prediction_response_data)
@@ -179,6 +200,7 @@ class TestPredictionResponseCreation:
 # ════════════════════════════════════════════════════════════════════════════════
 # ErrorResponse
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestErrorResponseCreation:
     """Testes para criação de ErrorResponse."""
@@ -202,7 +224,9 @@ class TestErrorResponseCreation:
         response = ErrorResponse(**valid_error_response_data)
         assert response.details is None
 
-    @pytest.mark.parametrize("missing_field", ["error_code", "error_message", "timestamp"])
+    @pytest.mark.parametrize(
+        "missing_field", ["error_code", "error_message", "timestamp"]
+    )
     def test_missing_required_fields(self, valid_error_response_data, missing_field):
         del valid_error_response_data[missing_field]
         with pytest.raises(ValidationError):
@@ -212,6 +236,7 @@ class TestErrorResponseCreation:
 # ════════════════════════════════════════════════════════════════════════════════
 # HealthResponse
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestHealthResponseCreation:
     """Testes para criação de HealthResponse."""

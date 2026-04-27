@@ -47,24 +47,27 @@ def load_data(path: Path | str) -> pd.DataFrame:
 
     # Validação: Arquivo existe?
     if not path.exists():
-        logger.error("file not found", path = str(path))
+        logger.error("file not found", path=str(path))
         raise FileNotFoundError(f"Arquivo não encontrado: {path.name}")
 
     # Validação: Extensão é válida?
     if path.suffix.lower() not in _VALID_EXTENSIONS:
-        logger.error("unsupported extension", extension = path.suffix, valid = _VALID_EXTENSIONS)
+        logger.error(
+            "unsupported extension", extension=path.suffix, valid=_VALID_EXTENSIONS
+        )
         raise ValueError(
             f"Extensão '{path.suffix}' não suporta\n"
             f"Extensões válidas {_VALID_EXTENSIONS}"
         )
 
     # Carregamento
-    df = pd.read_excel(path) if path.suffix.lower() == '.xlsx' else pd.read_csv(path)
+    df = pd.read_excel(path) if path.suffix.lower() == ".xlsx" else pd.read_csv(path)
 
     # Logging
-    logger.info("data loaded", file= path.name, rows = df.shape[0], cols = df.shape[1])
+    logger.info("data loaded", file=path.name, rows=df.shape[0], cols=df.shape[1])
 
     return df
+
 
 def load_raw_data() -> pd.DataFrame:
     """Carrega o arquivo de dados brutos.
@@ -84,6 +87,6 @@ def load_raw_data() -> pd.DataFrame:
     """
 
     path = DATA_RAW_DIR / RAW_DATA_FILE
-    logger.debug("loading raw data", path = str(path))
+    logger.debug("loading raw data", path=str(path))
 
     return load_data(path)

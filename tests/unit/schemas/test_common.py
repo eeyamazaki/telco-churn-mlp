@@ -19,6 +19,7 @@ from src.schemas.common import (
 # FIXTURES
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def valid_processed_row() -> dict:
     return {
@@ -48,6 +49,7 @@ def valid_processed_row() -> dict:
 @pytest.fixture
 def valid_processed_df(valid_processed_row) -> pd.DataFrame:
     return pd.DataFrame([valid_processed_row])
+
 
 @pytest.fixture
 def valid_processed_inference_df(valid_processed_row) -> pd.DataFrame:
@@ -91,8 +93,8 @@ def valid_inference_df(valid_inference_row) -> pd.DataFrame:
 # processed_data_schema
 # ════════════════════════════════════════════════════════════════════════════════
 
-class TestProcessedSchemaCreation:
 
+class TestProcessedSchemaCreation:
     def test_valid_dataframe_passes(self, valid_processed_df):
         result = processed_data_schema.validate(valid_processed_df)
         assert isinstance(result, pd.DataFrame)
@@ -108,18 +110,24 @@ class TestProcessedSchemaCreation:
         with pytest.raises(SchemaError):
             processed_data_schema.validate(df)
 
-@pytest.mark.parametrize("column", [
-        "Senior Citizen", "Partner", "Dependents",
-        "Phone Service", "Paperless Billing", "Churn Value",
-    ])
-class TestProcessedSchemaBinaryColumns:
 
+@pytest.mark.parametrize(
+    "column",
+    [
+        "Senior Citizen",
+        "Partner",
+        "Dependents",
+        "Phone Service",
+        "Paperless Billing",
+        "Churn Value",
+    ],
+)
+class TestProcessedSchemaBinaryColumns:
     def test_valid_binary_values(self, valid_processed_df, column):
         for value in [0, 1]:
             df = valid_processed_df.copy()
             df[column] = value
             processed_data_schema.validate(df)
-
 
     def test_invalid_binary_values(self, valid_processed_df, column):
         for value in [2, -1, None, "um"]:
@@ -128,12 +136,19 @@ class TestProcessedSchemaBinaryColumns:
             with pytest.raises(SchemaError):
                 processed_data_schema.validate(df)
 
-@pytest.mark.parametrize("column", [
-        "Online Security", "Online Backup", "Device Protection",
-        "Tech Support", "Streaming TV", "Streaming Movies",
-    ])
-class TestProcessedSchemaInternetServiceColumns:
 
+@pytest.mark.parametrize(
+    "column",
+    [
+        "Online Security",
+        "Online Backup",
+        "Device Protection",
+        "Tech Support",
+        "Streaming TV",
+        "Streaming Movies",
+    ],
+)
+class TestProcessedSchemaInternetServiceColumns:
     def test_valid_values(self, valid_processed_df, column):
         for value in ["Yes", "No", "No internet service"]:
             df = valid_processed_df.copy()
@@ -149,7 +164,6 @@ class TestProcessedSchemaInternetServiceColumns:
 
 
 class TestProcessedSchemaNumericRanges:
-
     @pytest.mark.parametrize("tenure", [1, 36, 72])
     def test_tenure_valid_values(self, valid_processed_df, tenure):
         df = valid_processed_df.copy()
@@ -191,7 +205,6 @@ class TestProcessedSchemaNumericRanges:
 
 
 class TestProcessedSchemaContractPayment:
-
     @pytest.mark.parametrize("contract", ["Month-to-month", "One year", "Two year"])
     def test_contract_valid_values(self, valid_processed_df, contract):
         df = valid_processed_df.copy()
@@ -205,10 +218,15 @@ class TestProcessedSchemaContractPayment:
         with pytest.raises(SchemaError):
             processed_data_schema.validate(df)
 
-    @pytest.mark.parametrize("method", [
-        "Electronic check", "Mailed check",
-        "Bank transfer (automatic)", "Credit card (automatic)",
-    ])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "Electronic check",
+            "Mailed check",
+            "Bank transfer (automatic)",
+            "Credit card (automatic)",
+        ],
+    )
     def test_payment_method_valid_values(self, valid_processed_df, method):
         df = valid_processed_df.copy()
         df["Payment Method"] = method
@@ -226,7 +244,6 @@ class TestProcessedSchemaContractPayment:
 # processed_inference_schema (batch inference)
 # ════════════════════════════════════════════════════════════════════════════════
 class TestProcessedInferenceSchemaCreation:
-
     def test_valid_dataframe_passes(self, valid_processed_inference_df):
         result = processed_inference_schema.validate(valid_processed_inference_df)
         assert isinstance(result, pd.DataFrame)
@@ -253,8 +270,8 @@ class TestProcessedInferenceSchemaCreation:
 # engineered_data_schema (treinamento)
 # ════════════════════════════════════════════════════════════════════════════════
 
-class TestEngineeredSchemaCreation:
 
+class TestEngineeredSchemaCreation:
     def test_valid_dataframe_passes(self, valid_engineered_df):
         result = engineered_data_schema.validate(valid_engineered_df)
         assert isinstance(result, pd.DataFrame)
@@ -315,12 +332,13 @@ def test_contract_risk_score_invalid_values(valid_engineered_df):
         with pytest.raises(SchemaError):
             engineered_data_schema.validate(df)
 
+
 # ════════════════════════════════════════════════════════════════════════════════
 # engineered_inference_schema (batch inference)
 # ════════════════════════════════════════════════════════════════════════════════
 
-class TestEngineeredInferenceSchemaCreation:
 
+class TestEngineeredInferenceSchemaCreation:
     def test_valid_dataframe_passes(self, valid_inference_df):
         result = engineered_inference_schema.validate(valid_inference_df)
         assert isinstance(result, pd.DataFrame)
@@ -342,12 +360,15 @@ class TestEngineeredInferenceSchemaCreation:
 # SCHEMA_REGISTRY e get_schema()
 # ════════════════════════════════════════════════════════════════════════════════
 
-class TestSchemaRegistry:
 
+class TestSchemaRegistry:
     def test_registry_has_all_keys(self):
         assert set(SCHEMA_REGISTRY.keys()) == {
-            "processed", "processed_inference", "engineered", "engineered_inference"
-            }
+            "processed",
+            "processed_inference",
+            "engineered",
+            "engineered_inference",
+        }
 
     def test_get_schema_processed(self):
         assert get_schema("processed") is processed_data_schema
@@ -362,5 +383,5 @@ class TestSchemaRegistry:
         assert get_schema("engineered_inference") is engineered_inference_schema
 
     def test_get_schema_invalid_key_raises(self):
-        with pytest.raises(KeyError, match= r"Schema '.*' não encontrado"):
+        with pytest.raises(KeyError, match=r"Schema '.*' não encontrado"):
             get_schema("invalid")

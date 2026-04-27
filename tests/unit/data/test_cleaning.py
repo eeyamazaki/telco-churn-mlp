@@ -21,23 +21,27 @@ from src.data.cleaning import (
 @pytest.fixture
 def df_str_charges() -> pd.DataFrame:
     """DataFrame com 'Total Charges' como string, incluindo um vazio."""
-    return pd.DataFrame({
-        "Total Charges": ["100.0", "200.5", ""],
-        "Tenure Months": [12, 24, 0],
-    })
+    return pd.DataFrame(
+        {
+            "Total Charges": ["100.0", "200.5", ""],
+            "Tenure Months": [12, 24, 0],
+        }
+    )
 
 
 @pytest.fixture
 def df_binary() -> pd.DataFrame:
     """DataFrame com colunas binárias Yes/No e Senior Citizen já como int."""
-    return pd.DataFrame({
-        "Senior Citizen":   [0, 1],
-        "Partner":          ["Yes", "No"],
-        "Dependents":       ["No", "No"],
-        "Phone Service":    ["Yes", "No"],
-        "Paperless Billing":["No", "Yes"],
-        "Monthly Charges":  [50.0, 80.0],
-    })
+    return pd.DataFrame(
+        {
+            "Senior Citizen": [0, 1],
+            "Partner": ["Yes", "No"],
+            "Dependents": ["No", "No"],
+            "Phone Service": ["Yes", "No"],
+            "Paperless Billing": ["No", "Yes"],
+            "Monthly Charges": [50.0, 80.0],
+        }
+    )
 
 
 @pytest.fixture
@@ -49,45 +53,57 @@ def raw_df() -> pd.DataFrame:
     - 1 linha duplicada (linhas 0 e 3 idênticas após limpeza) → será dropada
     - Todas as colunas da blacklist para testar drop_columns
     """
-    return pd.DataFrame({
-        # Blacklist — serão removidas
-        "Count":       [1, 1, 1, 1],
-        "Country":     ["USA"] * 4,
-        "State":       ["CA"] * 4,
-        "CustomerID":  ["A", "B", "C", "D"],
-        "Lat Long":    ["1,2"] * 4,
-        "Latitude":    [34.0] * 4,
-        "Longitude":   [-118.0] * 4,
-        "Zip Code":    [90001] * 4,
-        "City":        ["LA"] * 4,
-        "Churn Score": [50, 60, 70, 50],
-        "CLTV":        [1000, 2000, 3000, 1000],
-        "Churn Reason":[None, None, None, None],
-        "Churn Label": ["No", "No", "No", "No"],
-        # Total Charges como string (posicao 2 vazia → NaN → drop)
-        "Total Charges":    ["100.0", "200.0", "", "100.0"],
-        # Binárias
-        "Senior Citizen":   [0, 0, 1, 0],
-        "Partner":          ["Yes", "No", "No", "Yes"],
-        "Dependents":       ["No", "No", "No", "No"],
-        "Phone Service":    ["Yes", "Yes", "No", "Yes"],
-        "Paperless Billing":["Yes", "No", "Yes", "Yes"],
-        # Outras features
-        "Gender":           ["Male", "Female", "Male", "Male"],
-        "Tenure Months":    [12, 24, 0, 12],
-        "Multiple Lines":   ["No", "Yes", "No phone service", "No"],
-        "Internet Service": ["DSL", "Fiber optic", "No", "DSL"],
-        "Online Security":  ["No", "Yes", "No internet service", "No"],
-        "Online Backup":    ["No", "Yes", "No internet service", "No"],
-        "Device Protection":["No", "No", "No internet service", "No"],
-        "Tech Support":     ["No", "No", "No internet service", "No"],
-        "Streaming TV":     ["No", "No", "No internet service", "No"],
-        "Streaming Movies": ["No", "No", "No internet service", "No"],
-        "Contract":         ["Month-to-month", "One year", "Month-to-month", "Month-to-month"],
-        "Payment Method":   ["Electronic check", "Mailed check", "Electronic check", "Electronic check"],
-        "Monthly Charges":  [50.0, 75.0, 30.0, 50.0],
-        "Churn Value":      [0, 0, 0, 0],
-    })
+    return pd.DataFrame(
+        {
+            # Blacklist — serão removidas
+            "Count": [1, 1, 1, 1],
+            "Country": ["USA"] * 4,
+            "State": ["CA"] * 4,
+            "CustomerID": ["A", "B", "C", "D"],
+            "Lat Long": ["1,2"] * 4,
+            "Latitude": [34.0] * 4,
+            "Longitude": [-118.0] * 4,
+            "Zip Code": [90001] * 4,
+            "City": ["LA"] * 4,
+            "Churn Score": [50, 60, 70, 50],
+            "CLTV": [1000, 2000, 3000, 1000],
+            "Churn Reason": [None, None, None, None],
+            "Churn Label": ["No", "No", "No", "No"],
+            # Total Charges como string (posicao 2 vazia → NaN → drop)
+            "Total Charges": ["100.0", "200.0", "", "100.0"],
+            # Binárias
+            "Senior Citizen": [0, 0, 1, 0],
+            "Partner": ["Yes", "No", "No", "Yes"],
+            "Dependents": ["No", "No", "No", "No"],
+            "Phone Service": ["Yes", "Yes", "No", "Yes"],
+            "Paperless Billing": ["Yes", "No", "Yes", "Yes"],
+            # Outras features
+            "Gender": ["Male", "Female", "Male", "Male"],
+            "Tenure Months": [12, 24, 0, 12],
+            "Multiple Lines": ["No", "Yes", "No phone service", "No"],
+            "Internet Service": ["DSL", "Fiber optic", "No", "DSL"],
+            "Online Security": ["No", "Yes", "No internet service", "No"],
+            "Online Backup": ["No", "Yes", "No internet service", "No"],
+            "Device Protection": ["No", "No", "No internet service", "No"],
+            "Tech Support": ["No", "No", "No internet service", "No"],
+            "Streaming TV": ["No", "No", "No internet service", "No"],
+            "Streaming Movies": ["No", "No", "No internet service", "No"],
+            "Contract": [
+                "Month-to-month",
+                "One year",
+                "Month-to-month",
+                "Month-to-month",
+            ],
+            "Payment Method": [
+                "Electronic check",
+                "Mailed check",
+                "Electronic check",
+                "Electronic check",
+            ],
+            "Monthly Charges": [50.0, 75.0, 30.0, 50.0],
+            "Churn Value": [0, 0, 0, 0],
+        }
+    )
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -171,11 +187,13 @@ class TestDropColumns:
 
     def test_remove_colunas_conhecidas(self):
         """Deve remover colunas da blacklist presentes no DataFrame."""
-        df = pd.DataFrame({
-            "Country": ["USA"],
-            "CustomerID": ["A"],
-            "Monthly Charges": [50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Country": ["USA"],
+                "CustomerID": ["A"],
+                "Monthly Charges": [50.0],
+            }
+        )
 
         result = drop_columns(df)
 
@@ -192,11 +210,13 @@ class TestDropColumns:
 
     def test_preserva_colunas_fora_da_blacklist(self):
         """Colunas não listadas na blacklist devem ser mantidas."""
-        df = pd.DataFrame({
-            "Country": ["USA"],
-            "Partner": ["Yes"],
-            "Monthly Charges": [50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Country": ["USA"],
+                "Partner": ["Yes"],
+                "Monthly Charges": [50.0],
+            }
+        )
 
         result = drop_columns(df)
 
@@ -215,10 +235,12 @@ class TestDropDuplicates:
 
     def test_remove_linhas_duplicadas(self):
         """Deve remover linhas com perfil de features idêntico."""
-        df = pd.DataFrame({
-            "Partner": ["Yes", "Yes", "No"],
-            "Monthly Charges": [50.0, 50.0, 80.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Partner": ["Yes", "Yes", "No"],
+                "Monthly Charges": [50.0, 50.0, 80.0],
+            }
+        )
 
         result = drop_duplicates(df)
 
@@ -226,10 +248,12 @@ class TestDropDuplicates:
 
     def test_mantém_primeira_ocorrencia(self):
         """Deve manter a primeira ocorrência do par duplicado."""
-        df = pd.DataFrame({
-            "Partner": ["Yes", "Yes"],
-            "Monthly Charges": [50.0, 50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Partner": ["Yes", "Yes"],
+                "Monthly Charges": [50.0, 50.0],
+            }
+        )
 
         result = drop_duplicates(df)
 
@@ -238,10 +262,12 @@ class TestDropDuplicates:
 
     def test_reinicia_indice(self):
         """Deve reiniciar o índice após remoção."""
-        df = pd.DataFrame({
-            "Partner": ["Yes", "No", "Yes"],
-            "Monthly Charges": [50.0, 80.0, 50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Partner": ["Yes", "No", "Yes"],
+                "Monthly Charges": [50.0, 80.0, 50.0],
+            }
+        )
 
         result = drop_duplicates(df)
 
@@ -249,10 +275,12 @@ class TestDropDuplicates:
 
     def test_sem_duplicatas_retorna_mesmo_tamanho(self):
         """Não deve remover linhas se não houver duplicatas."""
-        df = pd.DataFrame({
-            "Partner": ["Yes", "No"],
-            "Monthly Charges": [50.0, 80.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Partner": ["Yes", "No"],
+                "Monthly Charges": [50.0, 80.0],
+            }
+        )
 
         result = drop_duplicates(df)
 
@@ -337,7 +365,9 @@ class TestClean:
         result = clean(raw_df)
 
         for col in COLS_TO_DROP:
-            assert col not in result.columns, f"Coluna '{col}' deveria ter sido removida"
+            assert col not in result.columns, (
+                f"Coluna '{col}' deveria ter sido removida"
+            )
 
     def test_colunas_binarias_sao_int64(self, raw_df):
         """Variáveis binárias devem ser int64 após encoding."""
