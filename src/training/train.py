@@ -13,8 +13,6 @@ Execução:
     python -m src.training.train
 """
 
-from __future__ import annotations
-
 import json
 
 import joblib
@@ -24,7 +22,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from sklearn.compose import ColumnTransformer
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -35,12 +32,18 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.config import DATA_PROCESSED_DIR, MODELS_DIR, RANDOM_SEED
-from src.features import FeatureEngineer
-from src.logger import get_logger
+from src.config import (
+    DATA_PROCESSED_DIR,
+    MLFLOW_EXPERIMENT_NAME,
+    MLFLOW_TRACKING_URI,
+    MODELS_DIR,
+    RANDOM_SEED,
+    TARGET_COLUMN,
+)
+from src.features import FeatureEngineer, build_preprocessor
+from src.logger import get_logger, setup_logging
 from src.models import ChurnMLP
 
 logger = get_logger(__name__)
@@ -62,24 +65,7 @@ LR_SCHEDULER_FACTOR: float = 0.5
 TEST_SIZE: float = 0.15
 VAL_FRACTION_OF_TEMP: float = 0.176  # ≈ 15% do total após remover o test set
 
-MLFLOW_EXPERIMENT: str = "telco-churn-mlp"
 DATA_FILE: str = "telco_churn_cleaned.csv"
-
-NUMERIC_FEATURES: list[str] = [
-    "Tenure Months",
-    "Monthly Charges",
-    "Total Charges",
-    "Senior Citizen",
-    "Partner",
-    "Dependents",
-    "Phone Service",
-    "Paperless Billing",
-    "services_count",
-    "monthly_per_tenure",
-    "has_protection",
-    "is_senior_alone",
-    "contract_risk_score",
-]
 
 
 # ── Funções utilitárias ───────────────────────────────────────────────────────
@@ -224,6 +210,9 @@ def evaluate(
 
 def main() -> None:
     """Executa o pipeline completo de treinamento e registro de artefatos."""
+
+    setup_logging()
+
     # Garante reprodutibilidade em todas as bibliotecas
     np.random.seed(RANDOM_SEED)
     torch.manual_seed(RANDOM_SEED)
@@ -238,8 +227,8 @@ def main() -> None:
     logger.info("data loaded", path=str(data_path), shape=df.shape)
 
     feature_engineer = FeatureEngineer()
-    x = feature_engineer.fit_transform(df.drop(columns=["Churn Value"]))
-    y = df["Churn Value"]
+    x = feature_engineer.fit_transform(df.drop(columns=[TARGET_COLUMN]))
+    y = df[TARGET_COLUMN]
     logger.info(
         "feature engineering done", n_features=x.shape[1], churn_rate=round(y.mean(), 4)
     )
@@ -263,17 +252,8 @@ def main() -> None:
     )
 
     # ── 3. Encoding (fit apenas no treino — evita data leakage) ──────────────
-    categorical_features = [col for col in x.columns if col not in NUMERIC_FEATURES]
-    preprocessor = ColumnTransformer(
-        [
-            ("num", StandardScaler(), NUMERIC_FEATURES),
-            (
-                "cat",
-                OneHotEncoder(handle_unknown="ignore", sparse_output=False),
-                categorical_features,
-            ),
-        ]
-    )
+    preprocessor = build_preprocessor()
+
     x_train_enc = preprocessor.fit_transform(x_train)
     x_val_enc = preprocessor.transform(x_val)
     x_test_enc = preprocessor.transform(x_test)
@@ -319,15 +299,16 @@ def main() -> None:
     logger.info("evaluation complete", threshold=round(best_threshold, 4), **metrics)
 
     # ── 7. MLflow ─────────────────────────────────────────────────────────────
-    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     df_eng = x.copy()
-    df_eng["Churn Value"] = y
+    df_eng[TARGET_COLUMN] = y
     mlflow_dataset = mlflow.data.from_pandas(
         df_eng,
         source=str(data_path),
         name="telco_churn_processed",
-        targets="Churn Value",
+        targets=TARGET_COLUMN,
     )
 
     with mlflow.start_run(run_name=f"mlp-{'-'.join(str(h) for h in HIDDEN_DIMS)}"):
@@ -354,7 +335,7 @@ def main() -> None:
 
         mlflow.pytorch.log_model(model, name="model")
 
-    logger.info("mlflow run logged", experiment=MLFLOW_EXPERIMENT)
+    logger.info("mlflow run logged", experiment=MLFLOW_EXPERIMENT_NAME)
 
     # ── 8. Artefatos em disco ─────────────────────────────────────────────────
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
