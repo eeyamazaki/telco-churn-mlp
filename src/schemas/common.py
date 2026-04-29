@@ -82,7 +82,7 @@ _NUMERIC_COLS_STRICT = {
         pa.Float,
         checks=[
             Check.greater_than_or_equal_to(0),
-            Check.less_than_or_equal_to(8650),
+            Check.less_than_or_equal_to(8690),
         ],
         nullable=False,
         description="Custo total acumulado em USD",

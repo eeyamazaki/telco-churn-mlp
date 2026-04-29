@@ -86,7 +86,7 @@ class PredictionInput(BaseModel):
     total_charges: float = Field(
         ...,
         ge=0,
-        le=8650,
+        le=8690,
         description="Custo total acumulado (USD).",
     )
 
