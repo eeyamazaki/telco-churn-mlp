@@ -10,8 +10,6 @@ Schemas para validação de dados (Pydantic e Pandera).
 # ── Pandera Schemas (DataFrame) ──────────────────
 from src.schemas.common import (
     SCHEMA_REGISTRY,
-    engineered_data_schema,
-    engineered_inference_schema,
     get_schema,
     processed_data_schema,
     processed_inference_schema,
@@ -33,8 +31,6 @@ __all__ = [
     # Pandera
     "processed_data_schema",
     "processed_inference_schema",
-    "engineered_data_schema",
-    "engineered_inference_schema",
     "SCHEMA_REGISTRY",
     "get_schema",
 ]

@@ -45,6 +45,7 @@ from src.config import (
 from src.features import FeatureEngineer, build_preprocessor
 from src.logger import get_logger, setup_logging
 from src.models import ChurnMLP
+from src.schemas.common import processed_data_schema
 
 logger = get_logger(__name__)
 
@@ -225,6 +226,15 @@ def main() -> None:
     data_path = DATA_PROCESSED_DIR / DATA_FILE
     df = pd.read_csv(data_path)
     logger.info("data loaded", path=str(data_path), shape=df.shape)
+
+    # Validação de anomalias e schema
+    try:
+        processed_data_schema.validate(df)
+        logger.info("schema validation passed")
+    except Exception as exc:
+        logger.warning(
+            "schema validation failed - proceeding with caution", error=str(exc)
+        )
 
     feature_engineer = FeatureEngineer()
     x = feature_engineer.fit_transform(df.drop(columns=[TARGET_COLUMN]))
