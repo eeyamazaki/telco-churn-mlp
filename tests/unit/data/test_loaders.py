@@ -1,11 +1,12 @@
 """Testes para src/data/loaders.py."""
 
 from pathlib import Path
+import io
 
 import pandas as pd
 import pytest
 
-from src.data.loaders import load_data
+from src.data.loaders import load_data, load_from_upload
 
 # ════════════════════════════════════════════════════════════════════════════════
 # FIXTURES
@@ -92,3 +93,55 @@ class TestLoadDataErrors:
 
         with pytest.raises(ValueError):
             load_data(file)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# load_from_upload
+# ════════════════════════════════════════════════════════════════════════════════
+
+
+class TestLoadFromUploadSuccess:
+    """Testes de carregamento bem-sucedido via bytes de upload."""
+
+    def test_load_csv_bytes(self):
+        """Deve carregar CSV a partir de bytes e retornar DataFrame."""
+        buf = io.StringIO()
+        pd.DataFrame({"col_a": [1, 2, 3], "col_b": ["x", "y", "z"]}).to_csv(buf, index=False)
+        content = buf.getvalue().encode()
+
+        df = load_from_upload(content, "telco.csv")
+
+        assert isinstance(df, pd.DataFrame)
+        assert df.shape == (3, 2)
+        assert df["col_a"].to_list() == [1, 2, 3]
+
+    def test_load_xlsx_bytes(self):
+        """Deve carregar XLSX a partir de bytes e retornar DataFrame."""
+        buf = io.BytesIO()
+        pd.DataFrame({"col_a": [1, 2, 3], "col_b": ["x", "y", "z"]}).to_excel(buf, index=False)
+        content = buf.getvalue()
+
+        df = load_from_upload(content, "telco.xlsx")
+
+        assert isinstance(df, pd.DataFrame)
+        assert df.shape == (3, 2)
+        assert df["col_a"].to_list() == [1, 2, 3]
+
+    def test_extension_case_insensitive(self):
+        """Deve aceitar extensões em maiúsculo (.CSV)."""
+        buf = io.StringIO()
+        pd.DataFrame({"a": [1]}).to_csv(buf, index=False)
+        content = buf.getvalue().encode()
+
+        df = load_from_upload(content, "dados.CSV")
+
+        assert isinstance(df, pd.DataFrame)
+
+
+class TestLoadFromUploadErrors:
+    """Testes de erros esperados para upload."""
+
+    def test_unsupported_extension(self):
+        """Deve levantar ValueError para extensões não suportadas."""
+        with pytest.raises(ValueError):
+            load_from_upload(b"data", "dados.parquet")

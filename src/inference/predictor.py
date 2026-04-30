@@ -11,8 +11,6 @@ Ordem do pipeline (espelha o notebook 04_mlp.ipynb):
         → probabilidade de churn + predição binária
 """
 
-from __future__ import annotations
-
 import json
 
 import joblib
@@ -57,13 +55,12 @@ class ChurnPredictor:
 
         logger.info("loading model artifacts", models_dir=str(MODELS_DIR))
 
-        config = json.loads((MODELS_DIR / "mlp_config.json").read_text())
         self._preprocessor = joblib.load(MODELS_DIR / "preprocessor_mlp.pkl")
 
         self._model = ChurnMLP(
-            input_dim=config["input_dim"],
-            hidden_dims=config["hidden_dims"],
-            dropout_rate=config["dropout_rate"],
+            input_dim=_config["input_dim"],
+            hidden_dims=_config["hidden_dims"],
+            dropout_rate=_config["dropout_rate"],
         )
         self._model.load_state_dict(
             torch.load(MODELS_DIR / "mlp_weights.pt", weights_only=True)
@@ -73,7 +70,7 @@ class ChurnPredictor:
         logger.info(
             "artifacts loaded",
             model="ChurnMLP",
-            hidden_dims=config["hidden_dims"],
+            hidden_dims=_config["hidden_dims"],
             threshold=self.threshold,
         )
 

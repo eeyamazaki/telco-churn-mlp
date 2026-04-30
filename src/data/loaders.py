@@ -3,6 +3,7 @@
 Fornece duas funções principais:
     - load_data: carregamento genérico a partir de qualquer caminho CSV ou XLSX.
     - load_raw_data: atalho para carregar o arquivo bruto definido em config.py.
+    - load_from_upload: carregamento a partir de bytes de upload HTTP (CSV ou XLSX).
 
 Uso típico:
     from src.data.loaders import load_raw_data
@@ -12,6 +13,7 @@ Uso típico:
     df = load_data('data/processed/telco_cleaned.csv')
 """
 
+import io
 from pathlib import Path
 
 import pandas as pd
@@ -90,3 +92,44 @@ def load_raw_data() -> pd.DataFrame:
     logger.debug("loading raw data", path=str(path))
 
     return load_data(path)
+
+
+def load_from_upload(content: bytes, filename: str) -> pd.DataFrame:
+    """Carrega dados de bytes de um upload HTTP (Excel ou CSV) em memória.
+
+    Usado pelo endpoint /predict/batch da API para evitar escrita em disco.
+    A detecção do formato é feita pela extensão do nome do arquivo.
+    Extensões suportadas: .csv, .xlsx
+
+    Args:
+        content: Conteúdo bruto do arquivo em bytes (lido do UploadFile).
+        filename: Nome original do arquivo, usado para detectar a extensão.
+
+    Raises:
+        ValueError: Se a extensão do arquivo não for suportada.
+
+    Returns:
+        pd.DataFrame: DataFrame com os dados carregados.
+
+    Example:
+        >>> content = file.file.read()
+        >>> df = load_from_upload(content, file.filename)
+    """
+
+    suffix = Path(filename).suffix.lower()
+
+    if suffix not in _VALID_EXTENSIONS:
+        logger.error("unsupported extension", extension=suffix, valid=_VALID_EXTENSIONS)
+        raise ValueError(
+            f"Extensão '{suffix}' não suportada.\n"
+            f"Extensões válidas: {_VALID_EXTENSIONS}"
+        )
+
+    buf = io.BytesIO(content)
+    df = pd.read_excel(buf) if suffix == ".xlsx" else pd.read_csv(buf)
+
+    logger.info(
+        "data loaded from upload", file=filename, rows=df.shape[0], cols=df.shape[1]
+    )
+
+    return df

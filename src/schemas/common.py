@@ -179,7 +179,7 @@ processed_data_schema = DataFrameSchema(
     description="Schema para dados após limpeza — treinamento (com Churn Value)",
 )
 
-# SCHEMA 2: Dados processados — inferência (sem alvo, constraints estritas)
+# SCHEMA 2: Dados processados — inferência (sem alvo, constraints estritas, não trava com colunas extras)
 processed_inference_schema = DataFrameSchema(
     {
         **_CATEGORICAL_COLS,
@@ -188,7 +188,6 @@ processed_inference_schema = DataFrameSchema(
         **_INTERNET_SERVICE_COLS,
         **_CONTRACT_PAYMENT_COLS,
     },
-    strict=True,
     coerce=False,
     description="Schema para dados após limpeza — inferência (sem Churn Value)",
 )
