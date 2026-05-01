@@ -1,278 +1,186 @@
-# Telco Customer Churn — Previsão de Cancelamento de Clientes
+# Telco Customer Churn — Previsão de Cancelamento com MLP
 
-## Descrição do Projeto
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.11x-009688?logo=fastapi&logoColor=white)
+![MLflow](https://img.shields.io/badge/MLflow-2.x-0194E2?logo=mlflow&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-Uma empresa de telecomunicações enfrenta alta taxa de **churn** (cancelamento de clientes).
-Adquirir um novo cliente custa de 5 a 25 vezes mais do que reter um existente, o que torna
-a retenção proativa uma alavanca de negócio crítica.
-
-Este projeto implementa um sistema **end-to-end de Machine Learning** que prevê quais clientes
-têm maior risco de cancelar o serviço, permitindo que a empresa atue preventivamente com
-campanhas de retenção direcionadas.
-
-O modelo central é uma **rede neural (MLP)** construída com PyTorch, complementada por
-modelos baseline (Logistic Regression, DummyClassifier) e ensemble (Gradient Boosting,
-Random Forest) para referência de performance, todos rastreados com MLflow.
+Sistema **end-to-end de Machine Learning** que prevê quais clientes de uma operadora de
+telecom têm maior risco de cancelamento (churn), permitindo ações proativas de retenção.
+O modelo central é uma **rede neural MLP** construída com PyTorch, servida via API FastAPI
+e rastreada com MLflow. ROC-AUC de **0,8611** no test set, superando o baseline (Regressão
+Logística, AUC 0,8425).
 
 ---
 
-## ML Canvas
+## Resultados
 
-### 1. Proposta de Valor
+| Modelo | ROC-AUC | F1 | Recall | Threshold |
+|---|---|---|---|---|
+| DummyClassifier | 0,500 | — | 0,000 | — |
+| Logistic Regression (baseline) | 0,8425 | — | 0,710 | 0,5 |
+| **MLP PyTorch (final)** | **0,8611** | **0,6537** | **0,7204** | **0,5996** |
 
-**Problema:** Uma empresa de telecom da Califórnia perde clientes sem conseguir agir preventivamente.
-
-**Solução:** Um modelo que identifica, com antecedência, quais clientes têm alta probabilidade de cancelar — permitindo que a equipe de retenção/CRM aja *antes* do cancelamento acontecer.
-
----
-
-### 2. Stakeholders
-
-| Papel | Interesse |
-|---|---|
-| **Equipe de Retenção/CRM** | Recebe a lista de clientes em risco para acionar campanhas |
-| **Gestão de Produto** | Usa os drivers de churn para priorizar melhorias no serviço |
-| **Área Financeira** | Avalia o ROI das campanhas vs. custo do churn |
-| **Equipe de Dados/ML** | Constrói, monitora e retreina o modelo |
-| **Área de Atendimento** | ~25% dos churns são por suporte — impacto operacional direto |
+Threshold custo-ótimo (minimiza perda de LTV): 0,10 → Recall de 94,6%.
+Detalhes em [docs/results.md](docs/results.md) e [docs/decisions/002-threshold-cost-sensitive.md](docs/decisions/002-threshold-cost-sensitive.md).
 
 ---
 
-### 3. Dados Disponíveis
+## Arquitetura do Pipeline
 
-**Fonte:** [IBM Telco Customer Churn — Kaggle](https://www.kaggle.com/datasets/yeanzc/telco-customer-churn-ibm-dataset) — 7.032 clientes após limpeza (original: 7.043), California (Q3), 33 colunas originais.
+```mermaid
+flowchart LR
+    A[("XLSX bruto\n7.043 linhas")] --> B["Limpeza\n7.010 × 20 colunas"]
+    B --> C["Feature Eng.\n+6 features derivadas\n→ 26 colunas"]
+    C --> D["ColumnTransformer\nStandardScaler + OHE\n→ 49 features"]
+    D --> E["MLP PyTorch\n49→64→32→1\nBatchNorm + Dropout"]
+    E --> F[("MLflow\nparams + métricas\n+ artefatos")]
+    E --> G["FastAPI\nPOST /predict\nlatência < 200ms"]
 
-| Grupo | Variáveis-chave | Uso no Modelo |
-|---|---|---|
-| Demográficas | Gender, Senior Citizen, Partner, Dependents | Feature |
-| Contrato | Tenure Months, Contract, Payment Method, Paperless Billing | Feature (mais preditivas) |
-| Serviços | Phone, Internet, Security, Backup, Tech Support, Streaming | Feature |
-| Financeiro | Monthly Charges, Total Charges | Feature |
-| **Engenharia** | monthly_per_tenure, contract_risk_score, services_count, has_protection, is_senior_alone, tenure_group | Feature (top preditoras — #1 e #2 em feature importance) |
-| **Leakage** | Churn Score, CLTV | Excluir (derivados do evento) |
-| **Target** | Churn Value (0/1) | Variável alvo |
-| Pós-evento | Churn Reason | Excluir (só existe após o churn) |
-| Geolocalização | City, Zip Code, Lat/Long | Excluir (sem variância útil no escopo) |
-
-**Desbalanceamento:** 26.58% churn / 73.42% não-churn (ratio ≈ 1:2.8)
-
----
-
-### 4. Definição da Tarefa de ML
-
-| Item | Decisão |
-|---|---|
-| **Tipo de tarefa** | Classificação binária supervisionada |
-| **Output do modelo** | Probabilidade de churn (0.0 – 1.0) |
-| **Decisão de negócio** | Threshold ajustável (padrão 0.5, tunable) |
-| **Granularidade** | Por cliente individual |
-| **Frequência** | Batch mensal (ou semanal no futuro) |
-
----
-
-### 5. Métricas de Sucesso
-
-#### Métricas Técnicas (ML)
-
-| Métrica | Por que usar | Meta |
-|---|---|---|
-| **ROC-AUC** | Mede poder discriminativo independente do threshold | ≥ 0.85 |
-| **F1-Score** | Equilíbrio entre Precision e Recall | ≥ 0.65 |
-| **Recall** | Prioridade: não deixar escapar churns reais | ≥ 0.75 |
-
-#### Métricas de Negócio (KPIs)
-
-| KPI | Definição | Meta |
-|---|---|---|
-| **Custo de churn evitado** | (FN × LTV_médio) − (FP × custo_campanha) | Maximizar |
-| **Taxa de churn mensal** | % clientes que cancelaram no mês | Redução ≥ 15% vs. baseline histórico |
-| **Receita retida** | Receita dos clientes salvos pelas campanhas | Medido por grupo de controle |
-| **ROI da campanha** | Receita retida / custo da campanha de retenção | > 3× |
-
----
-
-### 6. Trade-off FP vs FN (Análise de Custo)
-
-| Erro | O que acontece | Custo |
-|---|---|---|
-| **Falso Negativo (FN)** | Cliente cancela sem ser detectado | Alto — perda do LTV médio (~R$2.110 por cliente) |
-| **Falso Positivo (FP)** | Campanha desnecessária para cliente fiel | Baixo — custo da abordagem de retenção (~R$75) |
-
-#### Fórmula de Custo
-
-```
-Custo_total = (FN × LTV_médio) + (FP × custo_campanha)
-
-Onde:
-  LTV_médio      = Tenure_médio × Monthly_Charges_médio
-                 = 32,5 meses × R$64,89 = R$2.110,21 por cliente perdido
-
-  custo_campanha = R$75,00 por abordagem desnecessária
-
-Razão FN/FP    = 28x — FN é 28 vezes mais caro que FP
+    style E fill:#dbeafe,stroke:#2563eb
+    style G fill:#dcfce7,stroke:#16a34a
+    style F fill:#f3e8ff,stroke:#9333ea
 ```
 
-**Resultado da análise (03_model_engineering.ipynb, seção 10):**
-
-| Threshold | Recall | Precisão | Custo Total |
-|---|---|---|---|
-| 0,50 (padrão) | ~53% | ~66% | referência |
-| **0,10 (ótimo)** | **94,6%** | 41,8% | **R$78.804** (mínimo) |
-
-**Estratégia:** Maximizar **Recall**, aceitando mais FPs. O custo de perder um cliente real (R$2.110) é **28× maior** que o custo de uma campanha desnecessária (R$75). O threshold ótimo de **0,10** evita 152 churns a mais do que o threshold padrão de 0,5. Threshold final deve ser validado com a equipe de CRM considerando capacidade operacional.
+Pipeline completo com diagramas detalhados: [docs/architecture_diagrams.md](docs/architecture_diagrams.md).
 
 ---
 
-### 7. SLOs — Service Level Objectives
-
-| Objetivo | Meta |
-|---|---|
-| **Latência de inferência (API)** | ≤ 200ms por requisição (p99) |
-| **Disponibilidade da API** | ≥ 99.5% uptime |
-| **Frequência de retreinamento** | Trimestral, ou se ROC-AUC cair > 5% |
-| **Drift de dados** | Alerta se distribuição das features mudar > 10% (PSI) |
-| **Cobertura do modelo** | ≥ 99% dos clientes ativos devem receber score |
-
----
-
-### 8. Riscos e Limitações
-
-| Risco | Mitigação |
-|---|---|
-| **Dataset estático (snapshot Q3 CA)** | Resultados podem não generalizar para outros estados/períodos |
-| **Data leakage** | `Churn Score` e `CLTV` excluídos explicitamente |
-| **Desbalanceamento de classes** | `class_weight='balanced'` na LR; `pos_weight` no MLP |
-| **Viés demográfico** | Monitorar performance separada para Senior Citizens |
-| **Ausência de dados temporais** | `Tenure Months` é proxy — sem histórico de transações |
-| **Features de engenharia em produção** | Transformações devem ser replicadas no pipeline de inferência |
-
----
-
-### 9. Pipeline de Produção
-
-```
-Dados novos (mensal)
-      ↓
-Validação de Schema (Pandera)
-      ↓
-Feature Engineering
-(monthly_per_tenure, contract_risk_score, services_count,
- has_protection, is_senior_alone, tenure_group)
-      ↓
-Pré-processamento
-(StandardScaler + OneHotEncoder — ColumnTransformer)
-      ↓
-Seleção de Features (SelectKBest — top 30)
-      ↓
-Inferência (MLP PyTorch / Gradient Boosting / FastAPI)
-      ↓
-Lista de risco → CRM
-      ↓
-Monitoramento (drift, métricas, latência)
-      ↓
-[Gatilho de retreinamento se necessário]
-```
-
----
-
-## Arquitetura
-
-```
-project-root/
-├── src/
-│   ├── data/            # Carregamento e validação de dados
-│   ├── features/        # Transformações e feature engineering
-│   ├── models/          # Definição dos modelos (MLP, baselines)
-│   ├── training/        # Loop de treino e avaliação
-│   ├── inference/       # Pipeline de inferência
-│   └── api/             # Serviço FastAPI
-├── data/
-│   ├── raw/             # Dados originais (imutáveis)
-│   └── processed/       # Dados processados (telco_churn_cleaned.csv)
-├── models/              # Modelos treinados serializados
-├── notebooks/           # Análises exploratórias e experimentos
-├── tests/               # Testes automatizados (pytest)
-├── docs/                # Documentação e Model Card
-├── pyproject.toml
-├── Makefile
-└── README.md
-```
-
----
-
-## Como Usar
-
-### Instalação
+## Quickstart
 
 ```bash
-# Clonar o repositório
+# 1. Clonar e instalar
 git clone <repo-url>
 cd telco-churn-mlp
-
-# Instalar dependências
 pip install -e ".[dev]"
-```
 
-### Treinar o modelo
-
-```bash
+# 2. Limpar dados e treinar
+make clean-data
 make train
-```
 
-### Rodar a API
-
-```bash
+# 3. Subir a API
 make run-api
-```
+# → http://localhost:8000/docs
 
-### Rodar os testes
-
-```bash
+# 4. Rodar testes e lint
 make test
-```
-
-### Linting
-
-```bash
 make lint
 ```
+
+**Exemplo de requisição à API:**
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenure_months": 2,
+    "monthly_charges": 70.0,
+    "total_charges": 140.0,
+    "contract": "Month-to-month",
+    "internet_service": "Fiber optic",
+    "senior_citizen": 0,
+    "partner": "No",
+    "dependents": "No",
+    "phone_service": "Yes",
+    "multiple_lines": "No",
+    "online_security": "No",
+    "online_backup": "No",
+    "device_protection": "No",
+    "tech_support": "No",
+    "streaming_tv": "No",
+    "streaming_movies": "No",
+    "paperless_billing": "Yes",
+    "payment_method": "Electronic check",
+    "gender": "Male",
+    "internet_service_type": "Fiber optic"
+  }'
+```
+
+---
+
+## Estrutura do Projeto
+
+```
+telco-churn-mlp/
+├── src/
+│   ├── data/            # Carregamento e limpeza (cleaner.py)
+│   ├── features/        # Feature engineering (engineer.py)
+│   ├── models/          # Definição do MLP (mlp.py)
+│   ├── training/        # Loop de treino com MLflow (train.py)
+│   ├── inference/       # Pipeline de inferência (predictor.py)
+│   ├── schemas/         # Validação Pydantic + Pandera
+│   ├── api/             # Serviço FastAPI (main.py)
+│   ├── config.py        # Seeds e paths centralizados
+│   └── logger.py        # Logging estruturado (structlog)
+├── data/
+│   ├── raw/             # Telco_customer_churn.xlsx (imutável)
+│   └── processed/       # telco_churn_cleaned.csv
+├── models/              # preprocessor_mlp.pkl · mlp_weights.pt · mlp_config.json
+├── notebooks/           # 01_eda · 02_baseline · 03_model_engineering · 04_mlp_pytorch
+├── tests/               # pytest: unitários, schema Pandera, smoke
+├── docs/
+│   ├── model-card.md            # Model Card completo (9 seções)
+│   ├── monitoring-plan.md       # Plano de monitoramento com playbook
+│   ├── architecture_diagrams.md # Diagramas Mermaid detalhados
+│   ├── results.md               # Tabela comparativa de experimentos
+│   ├── decisions/               # ADRs de decisões arquiteturais
+│   └── mlflow_artifacts/        # Screenshots de experimentos
+├── pyproject.toml       # Dependências e configuração (single source of truth)
+└── Makefile             # clean-data · train · run-api · test · lint
+```
+
+---
+
+## Documentação
+
+| Documento | Descrição |
+|---|---|
+| [Model Card](docs/model-card.md) | Arquitetura, métricas com IC 95%, fairness, LGPD, limitações |
+| [Plano de Monitoramento](docs/monitoring-plan.md) | PSI, thresholds de alerta, frequência, playbook de resposta |
+| [Diagramas de Arquitetura](docs/architecture_diagrams.md) | 5 diagramas Mermaid: treino, inferência, arquitetura completa, sequência da API e mapa de coerência |
+| [Resultados MLflow](docs/results.md) | Tabela comparativa de experimentos e parâmetros finais |
+| [ADR 001 — PyTorch](docs/decisions/001-uso-de-pytorch.md) | Por que PyTorch e não sklearn/XGBoost |
+| [ADR 002 — Threshold](docs/decisions/002-threshold-cost-sensitive.md) | Threshold custo-sensitivo: F1-ótimo vs custo-ótimo |
+| [ADR 003 — pos_weight](docs/decisions/003-pos-weight-balancing.md) | Por que pos_weight e não SMOTE/oversampling |
 
 ---
 
 ## Tecnologias
 
-- **PyTorch** — rede neural (MLP)
-- **Scikit-Learn** — preprocessing pipelines e modelos baseline/ensemble
-- **Scipy** — distribuições para busca de hiperparâmetros
-- **MLflow** — rastreamento de experimentos
-- **FastAPI** — API de inferência
-- **pytest** — testes automatizados
-- **pandera** — validação de schema dos dados
-- **ruff** — linting
+| Categoria | Stack |
+|---|---|
+| Modelo | PyTorch 2.x (MLP), Scikit-Learn (pipeline, baselines) |
+| API | FastAPI + Pydantic v2 + Uvicorn |
+| Validação de dados | Pandera (schema + ranges) |
+| Rastreamento | MLflow (params, métricas, artefatos, model registry) |
+| Testes | pytest (unitários, schema, smoke) |
+| Qualidade de código | ruff (lint + format) |
+| Logging | structlog (logging estruturado, sem `print()`) |
 
 ---
 
 ## Roadmap
 
 **Estágio 1 — Entendimento e Preparação**
-- [x] Definição do problema de negócio e ML Canvas
-- [x] EDA completa (distribuições, correlações, missing values, análise de churn por segmento)
-- [x] Modelos baseline (Dummy + Logistic Regression) com PR-AUC + MLflow
+- [x] EDA completa — distribuições, missing, correlações, análise de churn por segmento
+- [x] Baselines: DummyClassifier + Logistic Regression com MLflow
 
-**Estágio 2 — Modelagem com Redes Neurais**
-- [x] Feature Engineering (6 novas features — top preditoras em importância Gini e permutação)
-- [x] Model Engineering (Decision Tree, Random Forest, SVM, Gradient Boosting + tuning com StratifiedKFold)
-- [x] Rede neural MLP com PyTorch — arquitetura [64, 32], BatchNorm, Dropout, early stopping (epoch 28)
-- [x] Análise de custo FP vs FN — threshold ótimo 0,10 (Recall 94,6%, custo mínimo R$78.804)
-- [x] Comparação final: 6 métricas, 5 modelos — MLP com maior F1 (0,6495) e Recall (0,8136)
+**Estágio 2 — Modelagem**
+- [x] Feature Engineering — 6 novas features (top preditoras em importância Gini e permutação)
+- [x] Model Engineering — Decision Tree, Random Forest, SVM, Gradient Boosting + tuning
+- [x] MLP PyTorch — [64, 32], BatchNorm, Dropout, early stopping (época 43)
+- [x] Análise de custo FP vs FN — threshold custo-ótimo 0,10 (Recall 94,6%)
+- [x] Comparação final: 5 modelos, 5 métricas — MLP com maior ROC-AUC e F1
 
 **Estágio 3 — Engenharia e API**
-- [ ] Refatoração em módulos (`src/features`, `src/inference`, `src/api`)
-- [ ] Pipeline reprodutível (sklearn + transformadores custom)
-- [ ] API de inferência (FastAPI + Pydantic + logging estruturado + middleware de latência)
-- [ ] Testes automatizados (smoke, schema Pandera, unitários)
+- [x] Código modular em `src/` com princípios SOLID
+- [x] Pipeline reprodutível (ColumnTransformer + FeatureEngineer customizado)
+- [x] API FastAPI com validação Pydantic + Pandera + middleware de latência
+- [x] Testes automatizados (smoke, schema, unitários)
 
-**Estágio 4 — Documentação e Entrega**
-- [ ] Model Card (performance, limitações, vieses, cenários de falha)
-- [ ] Plano de monitoramento (métricas, alertas, playbook)
-- [ ] STAR Video (5 min)
+**Estágio 4 — Documentação**
+- [x] Model Card (`docs/model-card.md`)
+- [x] Plano de monitoramento (`docs/monitoring-plan.md`)
+- [x] ADRs de decisões arquiteturais (`docs/decisions/`)
+- [ ] Vídeo de apresentação STAR (5 min)
