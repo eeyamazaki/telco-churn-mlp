@@ -1,4 +1,4 @@
-.PHONY: help setup lint test train run-api clean
+.PHONY: help setup lint lint-fix test test-cov test-count preprocess train run-api run-streamlit clean
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -6,30 +6,36 @@ help: ## Show this help message
 
 setup: ## Create virtual environment and install dependencies
 	uv sync --all-extras
-	@echo "\n✅ Setup complete. Activate with: source .venv/bin/activate"
+	@echo "\n✅ Setup complete."
 
 lint: ## Run ruff linter and formatter
-	ruff check src/ tests/
-	ruff format --check src/ tests/
+	uv run ruff check src/ tests/
+	uv run ruff format --check src/ tests/
 
 lint-fix: ## Auto-fix lint issues
-	ruff check --fix src/ tests/
-	ruff format src/ tests/
+	uv run ruff check --fix src/ tests/
+	uv run ruff format src/ tests/
 
 test: ## Run all tests
-	pytest tests/
+	uv run pytest tests/
 
 test-cov: ## Run tests with coverage report
-	pytest tests/ --cov=src --cov-report=term-missing
+	uv run pytest tests/ --cov=src --cov-report=term-missing
 
 test-count: ## Count total number of tests
-	pytest tests/ --collect-only -q | tail -1
+	uv run pytest tests/ --collect-only -q | tail -1
 
-train: ## Train the model
-	python -m src.training.train
+preprocess: ## Process raw data and save to data/processed/
+	uv run python -m src.data.preprocess
+
+train: preprocess ## Train the model (runs preprocess automatically)
+	uv run python -m src.training.train
 
 run-api: ## Start the FastAPI inference server
-	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+	uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+run-streamlit: ## Start the Streamlit frontend (requires API running)
+	uv run streamlit run streamlit_app.py --server.port 8501
 
 clean: ## Remove build artifacts and caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

@@ -343,7 +343,7 @@ def main() -> None:
             mlflow.log_metric("train_loss", tl, step=step)
             mlflow.log_metric("val_loss", vl, step=step)
 
-        mlflow.pytorch.log_model(model, name="model")
+        mlflow.pytorch.log_model(model, artifact_path="model")
 
     logger.info("mlflow run logged", experiment=MLFLOW_EXPERIMENT_NAME)
 

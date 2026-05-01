@@ -215,11 +215,11 @@ class TestProcessedInferenceSchemaCreation:
         result = processed_inference_schema.validate(valid_processed_inference_df)
         assert isinstance(result, pd.DataFrame)
 
-    def test_churn_value_must_be_absent(self, valid_processed_inference_df):
+    def test_churn_value_filtered_out(self, valid_processed_inference_df):
         df = valid_processed_inference_df.copy()
         df["Churn Value"] = 0
-        with pytest.raises((SchemaError, SchemaErrors)):
-            processed_inference_schema.validate(df)
+        result = processed_inference_schema.validate(df)
+        assert "Churn Value" not in result.columns
 
     def test_missing_column_raises(self, valid_processed_inference_df):
         df = valid_processed_inference_df.drop(columns=["Tenure Months"])

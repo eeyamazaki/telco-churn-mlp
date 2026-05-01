@@ -21,7 +21,7 @@ RAW_DATA_FILE = "Telco_customer_churn.xlsx"
 
 # ── MLflow ────────────────────────────────────────────
 MLFLOW_EXPERIMENT_NAME = "telco-churn-mlp"
-MLFLOW_TRACKING_URI = str(PROJECT_ROOT / "mlruns")
+MLFLOW_TRACKING_URI = (PROJECT_ROOT / "mlruns").as_uri()
 
 # ── Feature columns ───────────────────────────────────
 COLS_TO_DROP = [

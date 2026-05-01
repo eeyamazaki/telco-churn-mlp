@@ -18,6 +18,20 @@ client = TestClient(app)
 
 
 # ════════════════════════════════════════════════════════════════════════════════
+# AUTENTICAÇÃO
+# ════════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture(scope="session")
+def auth_headers() -> dict:
+    """Realiza login e retorna o header Authorization com token JWT."""
+    response = client.post("/login", json={"username": "user", "password": "user123"})
+    assert response.status_code == 200, f"Login falhou: {response.json()}"
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+# ════════════════════════════════════════════════════════════════════════════════
 # PAYLOAD BASE
 # ════════════════════════════════════════════════════════════════════════════════
 
@@ -105,53 +119,53 @@ class TestHealthEndpoint:
 
 
 class TestPredictEndpointSuccess:
-    def test_status_200(self, payload_alto_risco):
-        response = client.post("/predict", json=payload_alto_risco)
+    def test_status_200(self, payload_alto_risco, auth_headers):
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 200
 
-    def test_estrutura_resposta(self, payload_alto_risco):
+    def test_estrutura_resposta(self, payload_alto_risco, auth_headers):
         """Resposta deve conter todos os campos do PredictionResponse."""
-        data = client.post("/predict", json=payload_alto_risco).json()
+        data = client.post("/predict", json=payload_alto_risco, headers=auth_headers).json()
         assert data["success"] is True
         assert "prediction" in data
         assert "timestamp" in data
         assert "model_version" in data
         assert "latency_ms" in data
 
-    def test_estrutura_predicao_aninhada(self, payload_alto_risco):
+    def test_estrutura_predicao_aninhada(self, payload_alto_risco, auth_headers):
         """O objeto 'prediction' deve ter os 4 campos de ChurnPrediction."""
-        pred = client.post("/predict", json=payload_alto_risco).json()["prediction"]
+        pred = client.post("/predict", json=payload_alto_risco, headers=auth_headers).json()["prediction"]
         assert "churn_probability" in pred
         assert "prediction" in pred
         assert "threshold_used" in pred
         assert "confidence" in pred
 
-    def test_probabilidade_entre_0_e_1(self, payload_alto_risco):
-        pred = client.post("/predict", json=payload_alto_risco).json()["prediction"]
+    def test_probabilidade_entre_0_e_1(self, payload_alto_risco, auth_headers):
+        pred = client.post("/predict", json=payload_alto_risco, headers=auth_headers).json()["prediction"]
         assert 0.0 <= pred["churn_probability"] <= 1.0
 
-    def test_prediction_label_valido(self, payload_alto_risco):
-        pred = client.post("/predict", json=payload_alto_risco).json()["prediction"]
+    def test_prediction_label_valido(self, payload_alto_risco, auth_headers):
+        pred = client.post("/predict", json=payload_alto_risco, headers=auth_headers).json()["prediction"]
         assert pred["prediction"] in ("Churn", "No Churn")
 
-    def test_threshold_correto(self, payload_alto_risco):
+    def test_threshold_correto(self, payload_alto_risco, auth_headers):
         """O threshold retornado deve ser o DEFAULT_THRESHOLD carregado do mlp_config.json."""
-        pred = client.post("/predict", json=payload_alto_risco).json()["prediction"]
+        pred = client.post("/predict", json=payload_alto_risco, headers=auth_headers).json()["prediction"]
         assert pred["threshold_used"] == pytest.approx(DEFAULT_THRESHOLD)
 
-    def test_latencia_positiva(self, payload_alto_risco):
-        data = client.post("/predict", json=payload_alto_risco).json()
+    def test_latencia_positiva(self, payload_alto_risco, auth_headers):
+        data = client.post("/predict", json=payload_alto_risco, headers=auth_headers).json()
         assert data["latency_ms"] > 0
 
-    def test_alto_risco_prediz_churn(self, payload_alto_risco):
+    def test_alto_risco_prediz_churn(self, payload_alto_risco, auth_headers):
         """Cliente de alto risco deve ser classificado como Churn."""
-        pred = client.post("/predict", json=payload_alto_risco).json()["prediction"]
+        pred = client.post("/predict", json=payload_alto_risco, headers=auth_headers).json()["prediction"]
         assert pred["prediction"] == "Churn"
         assert pred["churn_probability"] > 0.5
 
-    def test_baixo_risco_prediz_no_churn(self, payload_baixo_risco):
+    def test_baixo_risco_prediz_no_churn(self, payload_baixo_risco, auth_headers):
         """Cliente de baixo risco deve ser classificado como No Churn."""
-        pred = client.post("/predict", json=payload_baixo_risco).json()["prediction"]
+        pred = client.post("/predict", json=payload_baixo_risco, headers=auth_headers).json()["prediction"]
         assert pred["prediction"] == "No Churn"
 
 
@@ -161,44 +175,44 @@ class TestPredictEndpointSuccess:
 
 
 class TestPredictEndpointValidation:
-    def test_campo_faltando_retorna_422(self, payload_alto_risco):
+    def test_campo_faltando_retorna_422(self, payload_alto_risco, auth_headers):
         del payload_alto_risco["contract"]
-        response = client.post("/predict", json=payload_alto_risco)
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_tenure_zero_retorna_422(self, payload_alto_risco):
+    def test_tenure_zero_retorna_422(self, payload_alto_risco, auth_headers):
         """tenure_months=0 viola ge=1 — deve retornar 422."""
         payload_alto_risco["tenure_months"] = 0
-        response = client.post("/predict", json=payload_alto_risco)
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_tenure_acima_do_limite_retorna_422(self, payload_alto_risco):
+    def test_tenure_acima_do_limite_retorna_422(self, payload_alto_risco, auth_headers):
         """tenure_months=73 viola le=72 (detector de drift) — deve retornar 422."""
         payload_alto_risco["tenure_months"] = 73
-        response = client.post("/predict", json=payload_alto_risco)
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_internet_service_invalido_retorna_422(self, payload_alto_risco):
+    def test_internet_service_invalido_retorna_422(self, payload_alto_risco, auth_headers):
         payload_alto_risco["internet_service_type"] = "5G"
-        response = client.post("/predict", json=payload_alto_risco)
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_contrato_invalido_retorna_422(self, payload_alto_risco):
+    def test_contrato_invalido_retorna_422(self, payload_alto_risco, auth_headers):
         payload_alto_risco["contract"] = "Six months"
-        response = client.post("/predict", json=payload_alto_risco)
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_internet_sem_servicos_consistente(self, payload_alto_risco):
+    def test_internet_sem_servicos_consistente(self, payload_alto_risco, auth_headers):
         """internet_service_type='No' com online_security='Yes' deve retornar 422."""
         payload_alto_risco["internet_service_type"] = "No"
         payload_alto_risco["online_security"] = "Yes"
-        response = client.post("/predict", json=payload_alto_risco)
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_total_charges_inconsistente_retorna_422(self, payload_alto_risco):
+    def test_total_charges_inconsistente_retorna_422(self, payload_alto_risco, auth_headers):
         """total_charges muito baixo vs monthly*tenure deve retornar 422."""
         payload_alto_risco["tenure_months"] = 24
         payload_alto_risco["monthly_charges"] = 100.0
         payload_alto_risco["total_charges"] = 500.0  # esperado mínimo: 2160
-        response = client.post("/predict", json=payload_alto_risco)
+        response = client.post("/predict", json=payload_alto_risco, headers=auth_headers)
         assert response.status_code == 422

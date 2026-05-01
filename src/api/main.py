@@ -1,9 +1,12 @@
 """Aplicação FastAPI para previsão de churn de clientes.
 
 Endpoints:
-    GET  /health   — verificação de saúde, confirma que o modelo está carregado
-    POST /predict  — retorna a probabilidade de churn e a decisão binária
-    POST /predict/batch  — recebe Excel ou CSV com dados brutos, retorna CSV com predições
+    POST /login         — autenticação, retorna JWT
+    GET  /              — status de carregamento do modelo
+    GET  /me            — dados do usuário autenticado
+    GET  /health        — verificação de saúde, confirma que o modelo está carregado
+    POST /predict       — retorna a probabilidade de churn e a decisão binária
+    POST /predict/batch — recebe Excel ou CSV com dados brutos, retorna CSV com predições
 
 Middleware:
     - Log de latência: cada requisição loga método, path, status e duração
@@ -15,9 +18,18 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import pandera.pandas as pa
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from src.api.auth import (
+    TOKEN_EXPIRE_MINUTES,
+    LoginRequest,
+    authenticate_user,
+    create_token,
+    get_current_user,
+)
+from src.api.services import MODEL_LOADED
 from src.config import TARGET_COLUMN
 from src.data.cleaning import clean
 from src.data.loaders import load_from_upload
@@ -48,6 +60,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8501"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Predictor e versão carregados uma única vez na inicialização da aplicação
 predictor = ChurnPredictor()
 _MODEL_VERSION = "mlp-v1"
@@ -72,7 +92,32 @@ async def latency_middleware(request: Request, call_next):
     return response
 
 
+# ── Autenticação ──────────────────────────────────────────────────────────────
+
+
+@app.post("/login", tags=["auth"])
+def login(credentials: LoginRequest):
+    """Autentica o usuário e retorna um token JWT."""
+    user = authenticate_user(credentials.username, credentials.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    token = create_token(user["username"], user["role"])
+    return {"access_token": token, "expires_in": TOKEN_EXPIRE_MINUTES * 60}
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+@app.get("/", tags=["ops"])
+def home():
+    """Retorna o status de carregamento do modelo."""
+    return {"modelo_carregado": MODEL_LOADED}
+
+
+@app.get("/me", tags=["auth"])
+def get_me(current_user: dict = Depends(get_current_user)):  # noqa: B008
+    """Retorna os dados do usuário autenticado."""
+    return current_user
 
 
 @app.get("/health", response_model=HealthResponse, tags=["ops"])
@@ -86,7 +131,10 @@ def health() -> HealthResponse:
 
 
 @app.post("/predict", response_model=PredictionResponse, tags=["inference"])
-def predict(customer: PredictionInput) -> PredictionResponse:
+def predict(
+    customer: PredictionInput,
+    current_user: dict = Depends(get_current_user),  # noqa: B008
+) -> PredictionResponse:
     """Prediz a probabilidade de churn para um único cliente.
 
     Retorna o score de probabilidade e a decisão binária com base no threshold
@@ -116,7 +164,10 @@ def predict(customer: PredictionInput) -> PredictionResponse:
 
 
 @app.post("/predict/batch", tags=["inference"])
-def predict_batch(file: UploadFile = File(...)) -> StreamingResponse:  # noqa: B008
+def predict_batch(
+    file: UploadFile = File(...),  # noqa: B008
+    current_user: dict = Depends(get_current_user),  # noqa: B008
+) -> StreamingResponse:
     """Recebe Excel ou CSV com dados brutos e retorna CSV com predições.
 
     O arquivo deve conter as colunas do dataset Telco Customer Churn original.
