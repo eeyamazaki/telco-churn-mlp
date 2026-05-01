@@ -22,7 +22,7 @@ RAW_DATA_FILE = "Telco_customer_churn.xlsx"
 # ── MLflow ────────────────────────────────────────────
 MLFLOW_EXPERIMENT_NAME = "telco-churn-mlp"
 MLFLOW_TRACKING_URI = str(PROJECT_ROOT / "mlruns")
-
+# MLFLOW_TRACKING_URI = r"file:///C:/Users/euped/Documents/VSCODE/Faculdade - Pós/Projeto_Apis_V2/telco-churn-mlp/mlruns"
 # ── Feature columns ───────────────────────────────────
 COLS_TO_DROP = [
     # Sem variância — valor único em todo o dataset

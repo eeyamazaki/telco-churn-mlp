@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import pandera.pandas as pa
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Request, UploadFile, HTTPException, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from src.config import TARGET_COLUMN
@@ -29,10 +29,20 @@ from src.schemas import (
     PredictionInput,
     PredictionResponse,
 )
+
+from autenticacao import (
+    create_token,
+    get_current_user,
+    authenticate_user,
+    TOKEN_EXPIRE_MINUTES,
+    LoginRequest
+)
+
+from services import MODEL_LOADED
+
 from src.schemas.output import ChurnPrediction
 
 logger = get_logger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,9 +81,35 @@ async def latency_middleware(request: Request, call_next):
     )
     return response
 
+# ── Login ─────────────────────────────────────────────────────────────────
+
+@app.post("/login")
+def login(credentials: LoginRequest):
+
+    user = authenticate_user(credentials.username, credentials.password)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+
+    token = create_token(user["username"], user["role"])
+
+    return {
+        "access_token": token,
+        "expires_in": TOKEN_EXPIRE_MINUTES * 60
+    }
+
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+@app.get("/")
+def home():
+    return {
+        "modelo_carregado": MODEL_LOADED
+    }
+
+@app.get("/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    return current_user
 
 @app.get("/health", response_model=HealthResponse, tags=["ops"])
 def health() -> HealthResponse:
@@ -86,7 +122,7 @@ def health() -> HealthResponse:
 
 
 @app.post("/predict", response_model=PredictionResponse, tags=["inference"])
-def predict(customer: PredictionInput) -> PredictionResponse:
+def predict(customer: PredictionInput, current_user: dict = Depends(get_current_user)) -> PredictionResponse:
     """Prediz a probabilidade de churn para um único cliente.
 
     Retorna o score de probabilidade e a decisão binária com base no threshold
@@ -116,7 +152,7 @@ def predict(customer: PredictionInput) -> PredictionResponse:
 
 
 @app.post("/predict/batch", tags=["inference"])
-def predict_batch(file: UploadFile = File(...)) -> StreamingResponse:  # noqa: B008
+def predict_batch(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)) -> StreamingResponse:  # noqa: B008
     """Recebe Excel ou CSV com dados brutos e retorna CSV com predições.
 
     O arquivo deve conter as colunas do dataset Telco Customer Churn original.
@@ -184,3 +220,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
             timestamp=datetime.now(),
         ).model_dump(mode="json"),
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("src.api.main:app", host="127.0.0.1", port=8000, reload=True)
