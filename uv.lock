@@ -4711,15 +4711,10 @@ dev = [
     { name = "httpx" },
     { name = "ipykernel" },
     { name = "jupyter" },
+    { name = "nbconvert" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "jupyter" },
-    { name = "nbconvert" },
 ]
 
 [package.metadata]
@@ -4731,6 +4726,7 @@ requires-dist = [
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "matplotlib", specifier = ">=3.7" },
     { name = "mlflow", specifier = ">=2.10" },
+    { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.17" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "pandas", specifier = ">=2.0" },
@@ -4748,12 +4744,6 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.27" },
 ]
 provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "jupyter", specifier = ">=1.1.1" },
-    { name = "nbconvert", specifier = ">=7.17.1" },
-]
 
 [[package]]
 name = "terminado"
