@@ -54,24 +54,18 @@ class PredictionInput(BaseModel):
     """
 
     # ── Demográficos ──────────────────────────────────────────────────
-    gender: Literal["Female", "Male"] = Field(
-        ...,
-        description="Gênero do cliente"
-    )
+    gender: Literal["Female", "Male"] = Field(..., description="Gênero do cliente")
 
     senior_citizen: Literal["Yes", "No"] = Field(
-        ...,
-        description="Se o cliente é sênior"
+        ..., description="Se o cliente é sênior"
     )
 
     partner: Literal["Yes", "No"] = Field(
-        ...,
-        description="Se o cliente tem um parceiro"
+        ..., description="Se o cliente tem um parceiro"
     )
 
     dependents: Literal["Yes", "No"] = Field(
-        ...,
-        description="Se o cliente tem dependentes"
+        ..., description="Se o cliente tem dependentes"
     )
 
     # ── Informações de Conta ──────────────────────────────────────────
@@ -92,35 +86,29 @@ class PredictionInput(BaseModel):
     total_charges: float = Field(
         ...,
         ge=0,
-        le= 8650,
+        le=8690,
         description="Custo total acumulado (USD).",
     )
 
     phone_service: Literal["Yes", "No"] = Field(
-        ...,
-        description="Se cliente tem serviço de telefone"
+        ..., description="Se cliente tem serviço de telefone"
     )
 
     multiple_lines: Literal["No", "No phone service", "Yes"] = Field(
-        ...,
-        description="Se o cliente tem múltiplas linhas telefônicas"
+        ..., description="Se o cliente tem múltiplas linhas telefônicas"
     )
 
     paperless_billing: Literal["Yes", "No"] = Field(
-        ...,
-        description="Se cliente usa fatura eletrônica"
+        ..., description="Se cliente usa fatura eletrônica"
     )
 
     # ── Pagamento ─────────────────────────────────────────────────────
     payment_method: Literal[
-        'Electronic check',
-        'Mailed check',
-        'Bank transfer (automatic)',
-        'Credit card (automatic)'
-    ] = Field(
-        ...,
-        description="Método de pagamento"
-    )
+        "Electronic check",
+        "Mailed check",
+        "Bank transfer (automatic)",
+        "Credit card (automatic)",
+    ] = Field(..., description="Método de pagamento")
 
     # ── Serviço de Internet ───────────────────────────────────────────
     internet_service_type: Literal["Fiber optic", "DSL", "No"] = Field(
@@ -217,19 +205,26 @@ class PredictionInput(BaseModel):
                 )
         return value
 
-    @model_validator(mode = "after")
+    @model_validator(mode="after")
     def validate_internet_service_consistency(self):
         """
         Validação cruzada: Se internet_service_type='No', serviços de internet
         não podem estar marcados como 'Yes'.
         """
         if self.internet_service_type == "No":
-
             internet_service_fields = [
-            "streaming_tv", "streaming_movies", "online_security",
-            "online_backup", "device_protection", "tech_support"
-        ]
-            problematic = [feature for feature in internet_service_fields if getattr(self, feature) == 'Yes']
+                "streaming_tv",
+                "streaming_movies",
+                "online_security",
+                "online_backup",
+                "device_protection",
+                "tech_support",
+            ]
+            problematic = [
+                feature
+                for feature in internet_service_fields
+                if getattr(self, feature) == "Yes"
+            ]
 
             if problematic:
                 raise ValueError(
@@ -239,7 +234,6 @@ class PredictionInput(BaseModel):
                 )
 
         return self
-
 
     def to_dict(self) -> dict:
         """
@@ -256,11 +250,11 @@ class PredictionInput(BaseModel):
 
         #  ── Transformação 1: Yes/No → 1/0 ──────────────────────────────
         binary_features = [
-            'senior_citizen',
-            'partner',
-            'dependents',
-            'phone_service',
-            'paperless_billing'
+            "senior_citizen",
+            "partner",
+            "dependents",
+            "phone_service",
+            "paperless_billing",
         ]
 
         for feature in binary_features:
@@ -270,28 +264,30 @@ class PredictionInput(BaseModel):
         # ── Transformação 2: snake_case → Title Case ───────────────────
         # Mapeamento de nomes do schema para nomes do preprocessor
         column_mapping = {
-            'gender': 'Gender',
-            'senior_citizen': 'Senior Citizen',
-            'partner': 'Partner',
-            'dependents': 'Dependents',
-            'tenure_months': 'Tenure Months',
-            'monthly_charges': 'Monthly Charges',
-            'total_charges': 'Total Charges',
-            'phone_service': 'Phone Service',
-            'multiple_lines': 'Multiple Lines',
-            'paperless_billing': 'Paperless Billing',
-            'payment_method': 'Payment Method',
-            'internet_service_type': 'Internet Service',
-            'contract': 'Contract',
-            'online_security': 'Online Security',
-            'online_backup': 'Online Backup',
-            'device_protection': 'Device Protection',
-            'tech_support': 'Tech Support',
-            'streaming_tv': 'Streaming TV',
-            'streaming_movies': 'Streaming Movies',
+            "gender": "Gender",
+            "senior_citizen": "Senior Citizen",
+            "partner": "Partner",
+            "dependents": "Dependents",
+            "tenure_months": "Tenure Months",
+            "monthly_charges": "Monthly Charges",
+            "total_charges": "Total Charges",
+            "phone_service": "Phone Service",
+            "multiple_lines": "Multiple Lines",
+            "paperless_billing": "Paperless Billing",
+            "payment_method": "Payment Method",
+            "internet_service_type": "Internet Service",
+            "contract": "Contract",
+            "online_security": "Online Security",
+            "online_backup": "Online Backup",
+            "device_protection": "Device Protection",
+            "tech_support": "Tech Support",
+            "streaming_tv": "Streaming TV",
+            "streaming_movies": "Streaming Movies",
         }
 
         # Renomear todas as colunas
-        data_renamed = {column_mapping.get(key, key): value for key, value in data.items()}
+        data_renamed = {
+            column_mapping.get(key, key): value for key, value in data.items()
+        }
 
         return data_renamed

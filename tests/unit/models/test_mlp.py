@@ -10,10 +10,10 @@ import torch
 
 from src.models.mlp import ChurnMLP
 
-
 # ════════════════════════════════════════════════════════════════════════════════
 # FIXTURES
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 @pytest.fixture
 def model() -> ChurnMLP:
@@ -31,6 +31,7 @@ def batch() -> torch.Tensor:
 # ════════════════════════════════════════════════════════════════════════════════
 # SHAPE DE SAÍDA
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestOutputShape:
     """O forward() deve retornar logits com shape (batch_size, 1) para qualquer entrada."""
@@ -72,6 +73,7 @@ class TestOutputShape:
 # SAÍDA COMO LOGITS (sem Sigmoid)
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestLogits:
     """A camada de saída retorna logits — Sigmoid é aplicado apenas na inferência."""
 
@@ -97,6 +99,7 @@ class TestLogits:
 # DETERMINISMO
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 class TestDeterminism:
     """Em eval mode o modelo deve ser determinístico (dropout desativado)."""
 
@@ -114,12 +117,15 @@ class TestDeterminism:
         model.train()
         out1 = model(batch)
         out2 = model(batch)
-        assert not torch.allclose(out1, out2), "Dropout deveria tornar as saídas diferentes"
+        assert not torch.allclose(out1, out2), (
+            "Dropout deveria tornar as saídas diferentes"
+        )
 
 
 # ════════════════════════════════════════════════════════════════════════════════
 # ARQUITETURA
 # ════════════════════════════════════════════════════════════════════════════════
+
 
 class TestArchitecture:
     """Verifica que a arquitetura configurada foi construída corretamente."""
@@ -144,13 +150,18 @@ class TestArchitecture:
         assert isinstance(last_layer, torch.nn.Linear)
         assert last_layer.out_features == 1
 
-    @pytest.mark.parametrize("hidden_dims", [
-        [32],
-        [64, 32],
-        [128, 64, 32],
-    ])
+    @pytest.mark.parametrize(
+        "hidden_dims",
+        [
+            [32],
+            [64, 32],
+            [128, 64, 32],
+        ],
+    )
     def test_numero_de_camadas_lineares(self, hidden_dims):
         """Número de camadas Linear deve ser len(hidden_dims) + 1 (saída)."""
         m = ChurnMLP(input_dim=10, hidden_dims=hidden_dims, dropout_rate=0.0)
-        linear_layers = [l for l in m.net.children() if isinstance(l, torch.nn.Linear)]
+        linear_layers = [
+            layer for layer in m.net.children() if isinstance(layer, torch.nn.Linear)
+        ]
         assert len(linear_layers) == len(hidden_dims) + 1

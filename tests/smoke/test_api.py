@@ -21,6 +21,7 @@ client = TestClient(app)
 # PAYLOAD BASE
 # ════════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def payload_alto_risco() -> dict:
     """Cliente com alto risco de churn: fiber optic + mês a mês + sem serviços."""
@@ -77,8 +78,8 @@ def payload_baixo_risco() -> dict:
 # /health
 # ════════════════════════════════════════════════════════════════════════════════
 
-class TestHealthEndpoint:
 
+class TestHealthEndpoint:
     def test_status_200(self):
         response = client.get("/health")
         assert response.status_code == 200
@@ -102,8 +103,8 @@ class TestHealthEndpoint:
 # /predict — casos de sucesso
 # ════════════════════════════════════════════════════════════════════════════════
 
-class TestPredictEndpointSuccess:
 
+class TestPredictEndpointSuccess:
     def test_status_200(self, payload_alto_risco):
         response = client.post("/predict", json=payload_alto_risco)
         assert response.status_code == 200
@@ -158,8 +159,8 @@ class TestPredictEndpointSuccess:
 # /predict — validação de entrada (422)
 # ════════════════════════════════════════════════════════════════════════════════
 
-class TestPredictEndpointValidation:
 
+class TestPredictEndpointValidation:
     def test_campo_faltando_retorna_422(self, payload_alto_risco):
         del payload_alto_risco["contract"]
         response = client.post("/predict", json=payload_alto_risco)

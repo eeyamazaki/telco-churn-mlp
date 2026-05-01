@@ -13,8 +13,6 @@ Execução:
     python -m src.training.train
 """
 
-from __future__ import annotations
-
 import json
 
 import joblib
@@ -24,7 +22,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from sklearn.compose import ColumnTransformer
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -35,13 +32,20 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.config import DATA_PROCESSED_DIR, MODELS_DIR, RANDOM_SEED
-from src.features import FeatureEngineer
-from src.logger import get_logger
+from src.config import (
+    DATA_PROCESSED_DIR,
+    MLFLOW_EXPERIMENT_NAME,
+    MLFLOW_TRACKING_URI,
+    MODELS_DIR,
+    RANDOM_SEED,
+    TARGET_COLUMN,
+)
+from src.features import FeatureEngineer, build_preprocessor
+from src.logger import get_logger, setup_logging
 from src.models import ChurnMLP
+from src.schemas.common import processed_data_schema
 
 logger = get_logger(__name__)
 
@@ -62,18 +66,11 @@ LR_SCHEDULER_FACTOR: float = 0.5
 TEST_SIZE: float = 0.15
 VAL_FRACTION_OF_TEMP: float = 0.176  # ≈ 15% do total após remover o test set
 
-MLFLOW_EXPERIMENT: str = "telco-churn-mlp"
 DATA_FILE: str = "telco_churn_cleaned.csv"
-
-NUMERIC_FEATURES: list[str] = [
-    "Tenure Months", "Monthly Charges", "Total Charges",
-    "Senior Citizen", "Partner", "Dependents", "Phone Service", "Paperless Billing",
-    "services_count", "monthly_per_tenure",
-    "has_protection", "is_senior_alone", "contract_risk_score",
-]
 
 
 # ── Funções utilitárias ───────────────────────────────────────────────────────
+
 
 def _make_tensor_dataset(x_enc: np.ndarray, y: pd.Series) -> TensorDataset:
     """Converte arrays numpy em TensorDataset para o DataLoader."""
@@ -94,6 +91,7 @@ def _find_optimal_threshold(y_true: np.ndarray, y_proba: np.ndarray) -> float:
 
 
 # ── Loop de treinamento ───────────────────────────────────────────────────────
+
 
 def train_model(
     model: ChurnMLP,
@@ -165,7 +163,9 @@ def train_model(
             best_val_loss = val_loss
             no_improve = 0
             # clone profundo para não compartilhar referências com o optimizer
-            best_weights = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            best_weights = {
+                k: v.detach().clone() for k, v in model.state_dict().items()
+            }
         else:
             no_improve += 1
 
@@ -178,7 +178,9 @@ def train_model(
             )
 
         if no_improve >= PATIENCE:
-            logger.info("early stopping", epoch=epoch + 1, best_val_loss=round(best_val_loss, 4))
+            logger.info(
+                "early stopping", epoch=epoch + 1, best_val_loss=round(best_val_loss, 4)
+            )
             break
 
     model.load_state_dict(best_weights)
@@ -186,6 +188,7 @@ def train_model(
 
 
 # ── Avaliação ────────────────────────────────────────────────────────────────
+
 
 def evaluate(
     model: ChurnMLP,
@@ -205,8 +208,12 @@ def evaluate(
 
 # ── Pipeline principal ────────────────────────────────────────────────────────
 
+
 def main() -> None:
     """Executa o pipeline completo de treinamento e registro de artefatos."""
+
+    setup_logging()
+
     # Garante reprodutibilidade em todas as bibliotecas
     np.random.seed(RANDOM_SEED)
     torch.manual_seed(RANDOM_SEED)
@@ -220,17 +227,32 @@ def main() -> None:
     df = pd.read_csv(data_path)
     logger.info("data loaded", path=str(data_path), shape=df.shape)
 
+    # Validação de anomalias e schema
+    try:
+        processed_data_schema.validate(df)
+        logger.info("schema validation passed")
+    except Exception as exc:
+        logger.warning(
+            "schema validation failed - proceeding with caution", error=str(exc)
+        )
+
     feature_engineer = FeatureEngineer()
-    x = feature_engineer.fit_transform(df.drop(columns=["Churn Value"]))
-    y = df["Churn Value"]
-    logger.info("feature engineering done", n_features=x.shape[1], churn_rate=round(y.mean(), 4))
+    x = feature_engineer.fit_transform(df.drop(columns=[TARGET_COLUMN]))
+    y = df[TARGET_COLUMN]
+    logger.info(
+        "feature engineering done", n_features=x.shape[1], churn_rate=round(y.mean(), 4)
+    )
 
     # ── 2. Split estratificado 70/15/15 ──────────────────────────────────────
     x_temp, x_test, y_temp, y_test = train_test_split(
         x, y, test_size=TEST_SIZE, random_state=RANDOM_SEED, stratify=y
     )
     x_train, x_val, y_train, y_val = train_test_split(
-        x_temp, y_temp, test_size=VAL_FRACTION_OF_TEMP, random_state=RANDOM_SEED, stratify=y_temp
+        x_temp,
+        y_temp,
+        test_size=VAL_FRACTION_OF_TEMP,
+        random_state=RANDOM_SEED,
+        stratify=y_temp,
     )
     logger.info(
         "data split",
@@ -240,14 +262,11 @@ def main() -> None:
     )
 
     # ── 3. Encoding (fit apenas no treino — evita data leakage) ──────────────
-    categorical_features = [col for col in x.columns if col not in NUMERIC_FEATURES]
-    preprocessor = ColumnTransformer([
-        ("num", StandardScaler(), NUMERIC_FEATURES),
-        ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), categorical_features),
-    ])
+    preprocessor = build_preprocessor()
+
     x_train_enc = preprocessor.fit_transform(x_train)
-    x_val_enc   = preprocessor.transform(x_val)
-    x_test_enc  = preprocessor.transform(x_test)
+    x_val_enc = preprocessor.transform(x_val)
+    x_test_enc = preprocessor.transform(x_test)
 
     input_dim = x_train_enc.shape[1]
     logger.info("encoding done", input_dim=input_dim)
@@ -256,8 +275,12 @@ def main() -> None:
     train_loader = DataLoader(
         _make_tensor_dataset(x_train_enc, y_train), batch_size=BATCH_SIZE, shuffle=True
     )
-    val_loader  = DataLoader(_make_tensor_dataset(x_val_enc,   y_val),   batch_size=BATCH_SIZE)
-    test_loader = DataLoader(_make_tensor_dataset(x_test_enc,  y_test),  batch_size=BATCH_SIZE)
+    val_loader = DataLoader(
+        _make_tensor_dataset(x_val_enc, y_val), batch_size=BATCH_SIZE
+    )
+    test_loader = DataLoader(
+        _make_tensor_dataset(x_test_enc, y_test), batch_size=BATCH_SIZE
+    )
 
     # ── 5. Modelo e treinamento ───────────────────────────────────────────────
     model = ChurnMLP(
@@ -276,38 +299,41 @@ def main() -> None:
     y_pred = (y_proba >= best_threshold).astype(int)
 
     metrics = {
-        "roc_auc":   round(roc_auc_score(y_true, y_proba), 4),
-        "pr_auc":    round(average_precision_score(y_true, y_proba), 4),
-        "f1_score":  round(f1_score(y_true, y_pred), 4),
-        "accuracy":  round(accuracy_score(y_true, y_pred), 4),
+        "roc_auc": round(roc_auc_score(y_true, y_proba), 4),
+        "pr_auc": round(average_precision_score(y_true, y_proba), 4),
+        "f1_score": round(f1_score(y_true, y_pred), 4),
+        "accuracy": round(accuracy_score(y_true, y_pred), 4),
         "precision": round(precision_score(y_true, y_pred), 4),
-        "recall":    round(recall_score(y_true, y_pred), 4),
+        "recall": round(recall_score(y_true, y_pred), 4),
     }
     logger.info("evaluation complete", threshold=round(best_threshold, 4), **metrics)
 
     # ── 7. MLflow ─────────────────────────────────────────────────────────────
-    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     df_eng = x.copy()
-    df_eng["Churn Value"] = y
+    df_eng[TARGET_COLUMN] = y
     mlflow_dataset = mlflow.data.from_pandas(
         df_eng,
         source=str(data_path),
         name="telco_churn_processed",
-        targets="Churn Value",
+        targets=TARGET_COLUMN,
     )
 
     with mlflow.start_run(run_name=f"mlp-{'-'.join(str(h) for h in HIDDEN_DIMS)}"):
         mlflow.log_input(mlflow_dataset, context="training")
-        mlflow.log_params({
-            "hidden_dims":   HIDDEN_DIMS,
-            "dropout_rate":  DROPOUT_RATE,
-            "learning_rate": LEARNING_RATE,
-            "weight_decay":  WEIGHT_DECAY,
-            "batch_size":    BATCH_SIZE,
-            "threshold":     round(best_threshold, 4),
-            "random_seed":   RANDOM_SEED,
-        })
+        mlflow.log_params(
+            {
+                "hidden_dims": HIDDEN_DIMS,
+                "dropout_rate": DROPOUT_RATE,
+                "learning_rate": LEARNING_RATE,
+                "weight_decay": WEIGHT_DECAY,
+                "batch_size": BATCH_SIZE,
+                "threshold": round(best_threshold, 4),
+                "random_seed": RANDOM_SEED,
+            }
+        )
         mlflow.log_metrics(metrics)
 
         # curvas de loss por época
@@ -315,11 +341,11 @@ def main() -> None:
             zip(history["train_loss"], history["val_loss"], strict=True)
         ):
             mlflow.log_metric("train_loss", tl, step=step)
-            mlflow.log_metric("val_loss",   vl, step=step)
+            mlflow.log_metric("val_loss", vl, step=step)
 
         mlflow.pytorch.log_model(model, name="model")
 
-    logger.info("mlflow run logged", experiment=MLFLOW_EXPERIMENT)
+    logger.info("mlflow run logged", experiment=MLFLOW_EXPERIMENT_NAME)
 
     # ── 8. Artefatos em disco ─────────────────────────────────────────────────
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -328,10 +354,10 @@ def main() -> None:
     torch.save(model.state_dict(), MODELS_DIR / "mlp_weights.pt")
 
     config = {
-        "input_dim":    int(input_dim),
-        "hidden_dims":  HIDDEN_DIMS,
+        "input_dim": int(input_dim),
+        "hidden_dims": HIDDEN_DIMS,
         "dropout_rate": DROPOUT_RATE,
-        "threshold":    round(best_threshold, 4),
+        "threshold": round(best_threshold, 4),
     }
     (MODELS_DIR / "mlp_config.json").write_text(json.dumps(config, indent=2))
 
