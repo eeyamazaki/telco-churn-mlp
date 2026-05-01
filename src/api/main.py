@@ -18,6 +18,7 @@ import pandera.pandas as pa
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from src.config import TARGET_COLUMN
 from src.data.cleaning import clean
 from src.data.loaders import load_from_upload
 from src.inference import ChurnPredictor
@@ -127,7 +128,7 @@ def predict_batch(file: UploadFile = File(...)) -> StreamingResponse:  # noqa: B
     start = time.perf_counter()
 
     df_raw = load_from_upload(file.file.read(), file.filename)
-    df_clean = clean(df_raw)
+    df_clean = clean(df_raw).drop(columns=[TARGET_COLUMN], errors="ignore")
     predictions = predictor.predict(df_clean)
 
     df_out = df_clean.copy()

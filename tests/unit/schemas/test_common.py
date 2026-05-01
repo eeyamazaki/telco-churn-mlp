@@ -157,13 +157,13 @@ class TestProcessedSchemaNumericRanges:
         with pytest.raises(SchemaError):
             processed_data_schema.validate(df)
 
-    @pytest.mark.parametrize("total", [0.0, 1000.0, 8650.0])
+    @pytest.mark.parametrize("total", [0.0, 1000.0, 8650.0, 8684.8])
     def test_total_charges_valid_values(self, valid_processed_df, total):
         df = valid_processed_df.copy()
         df["Total Charges"] = total
         processed_data_schema.validate(df)
 
-    @pytest.mark.parametrize("total", [-0.01, 8651.0, None, "um"])
+    @pytest.mark.parametrize("total", [-0.01, 8691.0, None, "um"])
     def test_total_charges_invalid_values(self, valid_processed_df, total):
         df = valid_processed_df.copy()
         df["Total Charges"] = total

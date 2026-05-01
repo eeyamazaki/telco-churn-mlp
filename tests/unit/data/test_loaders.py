@@ -1,7 +1,7 @@
 """Testes para src/data/loaders.py."""
 
-from pathlib import Path
 import io
+from pathlib import Path
 
 import pandas as pd
 import pytest
