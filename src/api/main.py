@@ -30,8 +30,7 @@ from src.api.auth import (
     get_current_user,
 )
 from src.api.services import MODEL_LOADED
-from src.config import TARGET_COLUMN
-from src.data.cleaning import clean
+from src.data.cleaning import clean_for_inference
 from src.data.loaders import load_from_upload
 from src.inference import ChurnPredictor
 from src.logger import get_logger, setup_logging
@@ -179,7 +178,7 @@ def predict_batch(
     start = time.perf_counter()
 
     df_raw = load_from_upload(file.file.read(), file.filename)
-    df_clean = clean(df_raw).drop(columns=[TARGET_COLUMN], errors="ignore")
+    df_clean = clean_for_inference(df_raw)
     predictions = predictor.predict(df_clean)
 
     df_out = df_clean.copy()

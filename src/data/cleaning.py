@@ -185,3 +185,18 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     df = encode_binary_columns(df)
     logger.info("cleaning finished", rows=df.shape[0], cols=df.shape[1])
     return df
+
+
+def clean_for_inference(df: pd.DataFrame) -> pd.DataFrame:
+    """Prepara dados brutos para inferência, preservando todas as colunas e linhas válidas.
+
+    Diferente de clean(), não remove colunas nem deduplica — apenas corrige tipos
+    e descarta clientes com tenure=0 (Total Charges nulo), que o modelo não consegue prever.
+    """
+    logger.info("cleaning started", rows=df.shape[0], cols=df.shape[1])
+    df = convert_total_charges(df)
+    df = drop_nulls(df)
+    df = encode_binary_columns(df)
+    logger.info("cleaning finished", rows=df.shape[0], cols=df.shape[1])
+
+    return df

@@ -50,7 +50,9 @@ def get_current_user(token: HTTPAuthorizationCredentials = Depends(security)) ->
             raise HTTPException(status_code=401, detail="Token inválido")
         return {"username": username, "role": role}
     except jwt.ExpiredSignatureError as err:
-        raise HTTPException(status_code=401, detail="Token expirado. Faça login novamente") from err
+        raise HTTPException(
+            status_code=401, detail="Token expirado. Faça login novamente"
+        ) from err
     except jwt.InvalidTokenError as err:
         raise HTTPException(status_code=401, detail="Token inválido") from err
 

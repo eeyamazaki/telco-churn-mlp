@@ -6,6 +6,7 @@ import pytest
 from src.config import BINARY_COLS, COLS_TO_DROP
 from src.data.cleaning import (
     clean,
+    clean_for_inference,
     convert_total_charges,
     drop_columns,
     drop_duplicates,
@@ -382,3 +383,25 @@ class TestClean:
         result = clean(raw_df)
 
         assert len(result) == 2
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# clean para inferência (integração)
+# ════════════════════════════════════════════════════════════════════════════════
+
+
+class TestCleanForInference:
+    def test_preserva_customer_id(self, raw_df):
+        result = clean_for_inference(raw_df)
+        assert "CustomerID" in result.columns
+
+    def test_nao_deduplica(self, raw_df):
+        """Linhas 0 e 3 do raw_df são idênticas após limpeza — devem permanecer."""
+        result = clean_for_inference(raw_df)
+        # raw_df tem 4 linhas, 1 com NaN → espera 3, não 2 como clean() retornaria
+        assert len(result) == 3
+
+    def test_converte_e_encoda(self, raw_df):
+        result = clean_for_inference(raw_df)
+        assert result["Total Charges"].dtype == "float64"
+        assert result["Partner"].dtype == "int64"

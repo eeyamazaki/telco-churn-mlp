@@ -12,7 +12,13 @@ Uso típico:
     df = clean(load_raw_data())
 """
 
-from src.data.cleaning import clean
+from src.data.cleaning import clean, clean_for_inference
 from src.data.loaders import load_data, load_from_upload, load_raw_data
 
-__all__ = ["clean", "load_data", "load_raw_data", "load_from_upload"]
+__all__ = [
+    "clean",
+    "load_data",
+    "load_raw_data",
+    "load_from_upload",
+    "clean_for_inference",
+]

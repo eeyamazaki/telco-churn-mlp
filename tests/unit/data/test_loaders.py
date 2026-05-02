@@ -106,7 +106,9 @@ class TestLoadFromUploadSuccess:
     def test_load_csv_bytes(self):
         """Deve carregar CSV a partir de bytes e retornar DataFrame."""
         buf = io.StringIO()
-        pd.DataFrame({"col_a": [1, 2, 3], "col_b": ["x", "y", "z"]}).to_csv(buf, index=False)
+        pd.DataFrame({"col_a": [1, 2, 3], "col_b": ["x", "y", "z"]}).to_csv(
+            buf, index=False
+        )
         content = buf.getvalue().encode()
 
         df = load_from_upload(content, "telco.csv")
@@ -118,7 +120,9 @@ class TestLoadFromUploadSuccess:
     def test_load_xlsx_bytes(self):
         """Deve carregar XLSX a partir de bytes e retornar DataFrame."""
         buf = io.BytesIO()
-        pd.DataFrame({"col_a": [1, 2, 3], "col_b": ["x", "y", "z"]}).to_excel(buf, index=False)
+        pd.DataFrame({"col_a": [1, 2, 3], "col_b": ["x", "y", "z"]}).to_excel(
+            buf, index=False
+        )
         content = buf.getvalue()
 
         df = load_from_upload(content, "telco.xlsx")
