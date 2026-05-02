@@ -47,6 +47,23 @@ Pipeline completo com diagramas detalhados: [docs/architecture_diagrams.md](docs
 
 ---
 
+## Dataset
+
+O arquivo bruto **não está versionado** no repositório. Faça o download manualmente antes de rodar o pipeline:
+
+1. Acesse: [Telco Customer Churn — IBM Dataset (Kaggle)](https://www.kaggle.com/datasets/yeanzc/telco-customer-churn-ibm-dataset)
+2. Baixe o arquivo `Telco_customer_churn.xlsx`
+3. Coloque-o em `data/raw/Telco_customer_churn.xlsx`
+
+Depois execute:
+
+```bash
+make data-clean  # XLSX → data/processed/telco_churn_cleaned.csv
+make train       # treina o modelo com os dados processados
+```
+
+---
+
 ## Quickstart
 
 ```bash
@@ -109,23 +126,6 @@ curl -X POST http://localhost:8000/predict \
     "payment_method": "Electronic check",
     "gender": "Male"
   }'
-```
-
----
-
-## Dataset
-
-O arquivo bruto **não está versionado** no repositório. Faça o download manualmente antes de rodar o pipeline:
-
-1. Acesse: [Telco Customer Churn — IBM Dataset (Kaggle)](https://www.kaggle.com/datasets/yeanzc/telco-customer-churn-ibm-dataset)
-2. Baixe o arquivo `Telco_customer_churn.xlsx`
-3. Coloque-o em `data/raw/Telco_customer_churn.xlsx`
-
-Depois execute:
-
-```bash
-make data-clean  # XLSX → data/processed/telco_churn_cleaned.csv
-make train       # treina o modelo com os dados processados
 ```
 
 ---
