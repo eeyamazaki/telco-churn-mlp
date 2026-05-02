@@ -77,7 +77,7 @@
 
 ```bash
 # 1. Limpeza dos dados
-make clean-data
+make data-clean
 
 # 2. Treinamento e registro no MLflow
 make train

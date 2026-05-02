@@ -14,11 +14,11 @@ Visão visual dos fluxos de dados, módulos e artefatos do projeto. Cinco diagra
 
 > **Pergunta respondida:** como os dados brutos (`Telco_customer_churn.xlsx`) viram os três artefatos em `models/` que a API usa em produção?
 
-Executado em dois passos: `make clean-data` e depois `make train`.
+Executado em dois passos: `make data-clean` e depois `make train`.
 
 ```mermaid
 flowchart TD
-    START_RAW(["make clean-data
+    START_RAW(["make data-clean
     python -m src.data.cleaner"])
 
     START_TRAIN(["make train
@@ -470,7 +470,7 @@ flowchart LR
 
 **Fluxo reprodutivel completo do zero:**
 ```
-make clean-data   # XLSX → CSV limpo (src/data/cleaner.py)
+make data-clean   # XLSX → CSV limpo (src/data/cleaner.py)
 make train        # CSV → artefatos treinados (src/training/train.py)
 make run-api      # artefatos → endpoint HTTP (src/api/main.py)
 ```

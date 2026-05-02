@@ -1,4 +1,4 @@
-.PHONY: help setup lint lint-fix test test-cov test-count preprocess train run-api run-streamlit clean
+.PHONY: help setup lint lint-fix test test-cov test-count preprocess data-clean train run-api run-streamlit clean
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -6,7 +6,8 @@ help: ## Show this help message
 
 setup: ## Create virtual environment and install dependencies
 	uv sync --all-extras
-	@echo "\n✅ Setup complete."
+	@uv run python -c "import shutil, pathlib; p=pathlib.Path('.env'); p.exists() or (shutil.copy('.env.example', '.env'), print('[OK] .env criado a partir do .env.example -- edite o JWT_SECRET antes de rodar.'))"
+	@uv run python -c "print('Setup complete.')"
 
 lint: ## Run ruff linter and formatter
 	uv run ruff check src/ tests/
@@ -28,6 +29,9 @@ test-count: ## Count total number of tests
 preprocess: ## Process raw data and save to data/processed/
 	uv run python -m src.data.preprocess
 
+data-clean: ## Limpa o .xlsx bruto e gera data/processed/telco_churn_cleaned.csv
+	uv run python -m src.data.preprocess
+
 train: preprocess ## Train the model (runs preprocess automatically)
 	uv run python -m src.training.train
 
@@ -35,7 +39,7 @@ run-api: ## Start the FastAPI inference server
 	uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 run-streamlit: ## Start the Streamlit frontend (requires API running)
-	uv run streamlit run streamlit_app.py --server.port 8501
+	uv run streamlit run src/app/app.py --server.port 8501
 
 clean: ## Remove build artifacts and caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

@@ -50,36 +50,51 @@ Pipeline completo com diagramas detalhados: [docs/architecture_diagrams.md](docs
 ## Quickstart
 
 ```bash
-# 1. Clonar e instalar
+# 1. Clonar, instalar dependências e configurar .env
 git clone <repo-url>
 cd telco-churn-mlp
-pip install -e ".[dev]"
+make setup
+# Edite o JWT_SECRET em .env antes de continuar
 
 # 2. Limpar dados e treinar
-make clean-data
+make data-clean
 make train
 
-# 3. Subir a API
-make run-api
-# → http://localhost:8000/docs
+# 3. Subir a API e o frontend
+make run-api        # Terminal 1 → http://localhost:8000/docs
+make run-streamlit  # Terminal 2 → http://localhost:8501
 
 # 4. Rodar testes e lint
 make test
 make lint
 ```
 
-**Exemplo de requisição à API:**
+**Credenciais padrão (desenvolvimento):**
+
+| Usuário | Senha |
+|---|---|
+| `admin` | `admin123` |
+| `user` | `user123` |
+
+**Exemplo de requisição à API (com autenticação):**
 
 ```bash
+# 1. Obter token
+TOKEN=$(curl -s -X POST http://localhost:8000/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}' | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+# 2. Fazer predição
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "tenure_months": 2,
     "monthly_charges": 70.0,
     "total_charges": 140.0,
     "contract": "Month-to-month",
-    "internet_service": "Fiber optic",
-    "senior_citizen": 0,
+    "internet_service_type": "Fiber optic",
+    "senior_citizen": "No",
     "partner": "No",
     "dependents": "No",
     "phone_service": "Yes",
@@ -92,9 +107,25 @@ curl -X POST http://localhost:8000/predict \
     "streaming_movies": "No",
     "paperless_billing": "Yes",
     "payment_method": "Electronic check",
-    "gender": "Male",
-    "internet_service_type": "Fiber optic"
+    "gender": "Male"
   }'
+```
+
+---
+
+## Dataset
+
+O arquivo bruto **não está versionado** no repositório. Faça o download manualmente antes de rodar o pipeline:
+
+1. Acesse: [Telco Customer Churn — IBM Dataset (Kaggle)](https://www.kaggle.com/datasets/yeanzc/telco-customer-churn-ibm-dataset)
+2. Baixe o arquivo `Telco_customer_churn.xlsx`
+3. Coloque-o em `data/raw/Telco_customer_churn.xlsx`
+
+Depois execute:
+
+```bash
+make data-clean  # XLSX → data/processed/telco_churn_cleaned.csv
+make train       # treina o modelo com os dados processados
 ```
 
 ---
@@ -111,6 +142,7 @@ telco-churn-mlp/
 │   ├── inference/       # Pipeline de inferência (predictor.py)
 │   ├── schemas/         # Validação Pydantic + Pandera
 │   ├── api/             # Serviço FastAPI (main.py)
+│   ├── app/             # Frontend Streamlit (app.py)
 │   ├── config.py        # Seeds e paths centralizados
 │   └── logger.py        # Logging estruturado (structlog)
 ├── data/
@@ -127,7 +159,8 @@ telco-churn-mlp/
 │   ├── decisions/               # ADRs de decisões arquiteturais
 │   └── mlflow_artifacts/        # Screenshots de experimentos
 ├── pyproject.toml       # Dependências e configuração (single source of truth)
-└── Makefile             # clean-data · train · run-api · test · lint
+├── .env.example         # Template de variáveis de ambiente
+└── Makefile             # setup · data-clean · train · run-api · run-streamlit · test · lint
 ```
 
 ---

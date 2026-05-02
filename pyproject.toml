@@ -85,4 +85,8 @@ indent-style = "space"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
 
