@@ -81,25 +81,44 @@ def pagina_predicao_single():
 
         with col2:
             st.subheader("Conta")
-            tenure_months = st.number_input("Meses como cliente", min_value=1, max_value=72, value=12)
-            monthly_charges = st.number_input("Cobrança mensal (USD)", min_value=0.1, max_value=119.0, value=65.0)
-            total_charges = st.number_input("Cobrança total (USD)", min_value=0.0, max_value=8690.0, value=780.0)
-            contract = st.selectbox("Contrato", ["Month-to-month", "One year", "Two year"])
-            payment_method = st.selectbox("Forma de pagamento", [
-                "Electronic check", "Mailed check",
-                "Bank transfer (automatic)", "Credit card (automatic)",
-            ])
+            tenure_months = st.number_input(
+                "Meses como cliente", min_value=1, max_value=72, value=12
+            )
+            monthly_charges = st.number_input(
+                "Cobrança mensal (USD)", min_value=0.1, max_value=119.0, value=65.0
+            )
+            total_charges = st.number_input(
+                "Cobrança total (USD)", min_value=0.0, max_value=8690.0, value=780.0
+            )
+            contract = st.selectbox(
+                "Contrato", ["Month-to-month", "One year", "Two year"]
+            )
+            payment_method = st.selectbox(
+                "Forma de pagamento",
+                [
+                    "Electronic check",
+                    "Mailed check",
+                    "Bank transfer (automatic)",
+                    "Credit card (automatic)",
+                ],
+            )
             paperless_billing = st.selectbox("Fatura eletrônica", ["No", "Yes"])
 
         with col3:
             st.subheader("Serviços")
             phone_service = st.selectbox("Serviço de telefone", ["Yes", "No"])
-            multiple_lines = st.selectbox("Múltiplas linhas", ["No", "Yes", "No phone service"])
-            internet_service_type = st.selectbox("Internet", ["Fiber optic", "DSL", "No"])
+            multiple_lines = st.selectbox(
+                "Múltiplas linhas", ["No", "Yes", "No phone service"]
+            )
+            internet_service_type = st.selectbox(
+                "Internet", ["Fiber optic", "DSL", "No"]
+            )
             internet_options = ["No internet service", "No", "Yes"]
             online_security = st.selectbox("Segurança online", internet_options)
             online_backup = st.selectbox("Backup online", internet_options)
-            device_protection = st.selectbox("Proteção de dispositivo", internet_options)
+            device_protection = st.selectbox(
+                "Proteção de dispositivo", internet_options
+            )
             tech_support = st.selectbox("Suporte técnico", internet_options)
             streaming_tv = st.selectbox("Streaming TV", internet_options)
             streaming_movies = st.selectbox("Streaming filmes", internet_options)
@@ -152,7 +171,9 @@ def pagina_predicao_single():
                 st.metric("Threshold", f"{pred['threshold_used']:.2f}")
 
             if is_churn:
-                st.error("⚠️ Cliente com alto risco de churn — acionar campanha de retenção.")
+                st.error(
+                    "⚠️ Cliente com alto risco de churn — acionar campanha de retenção."
+                )
             else:
                 st.success("✅ Cliente com baixo risco de churn.")
 
@@ -176,20 +197,29 @@ def pagina_predicao_batch():
     uploaded = st.file_uploader("Selecione o arquivo", type=["csv", "xlsx"])
 
     if uploaded is not None:
-        st.info(f"Arquivo carregado: **{uploaded.name}** ({uploaded.size / 1024:.1f} KB)")
+        st.info(
+            f"Arquivo carregado: **{uploaded.name}** ({uploaded.size / 1024:.1f} KB)"
+        )
 
         if st.button("Enviar para predição", use_container_width=True):
             with st.spinner("Processando..."):
                 resp = requests.post(
                     f"{API_URL}/predict/batch",
                     headers=auth_headers(),
-                    files={"file": (uploaded.name, uploaded.getvalue(), "application/octet-stream")},
+                    files={
+                        "file": (
+                            uploaded.name,
+                            uploaded.getvalue(),
+                            "application/octet-stream",
+                        )
+                    },
                     timeout=60,
                 )
 
             if resp.status_code == 200:
                 df_result = io.StringIO(resp.text)
                 import pandas as pd
+
                 df = pd.read_csv(df_result)
 
                 st.success(f"Predição concluída — {len(df)} clientes processados.")

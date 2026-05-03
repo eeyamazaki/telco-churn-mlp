@@ -47,6 +47,31 @@ Pipeline completo com diagramas detalhados: [docs/architecture_diagrams.md](docs
 
 ---
 
+## Pré-requisitos
+
+Este projeto utiliza o **[uv](https://docs.astral.sh/uv/)** como gerenciador de pacotes e ambientes Python. O `uv` é extremamente rápido e garante que todas as dependências sejam resolvidas de forma idêntica em qualquer máquina.
+
+Para garantir a reprodutibilidade e o funcionamento correto dos comandos automatizados via `Makefile`, a instalação do `uv` é obrigatória.
+
+### Instalação do uv
+Caso ainda não o tenha instalado, execute o comando correspondente ao seu sistema operacional:
+
+* **macOS/Linux**:
+
+```bash
+curl -sSf https://astral.sh/uv/install.sh | sh
+```
+
+* **Windows:**:
+
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Para outros métodos de instalação, consulte a [documentação oficial](https://docs.astral.sh/uv/getting-started/installation/).
+
+---
+
 ## Dataset
 
 O arquivo bruto **não está versionado** no repositório. Faça o download manualmente antes de rodar o pipeline:
