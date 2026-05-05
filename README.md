@@ -14,13 +14,36 @@ Logística, AUC 0,8425).
 
 ---
 
+## Demo
+
+### Apresentação em vídeo (Método STAR — 5 min)
+
+[![Assista à apresentação do projeto](https://img.youtube.com/vi/xWhNMGmJcuc/maxresdefault.jpg)](https://www.youtube.com/watch?v=xWhNMGmJcuc)
+
+### Endpoints em produção (Google Cloud Run + Streamlit Cloud)
+
+| Interface | URL |
+|---|---|
+| API — Swagger UI | https://telco-churn-api-502244006899.us-central1.run.app/docs |
+| Frontend — Streamlit | https://churn-streamlit-906993905770.southamerica-east1.run.app |
+
+> Credenciais de acesso: **usuário** `user` · **senha** `user123`
+>
+> **Para testar via Swagger UI:** acesse o link da API, clique em **POST /login**, execute com as credenciais acima e copie o `access_token` retornado. Em seguida, clique no botão **Authorize** (🔒) no topo da página, cole o token no campo `Value` e confirme. A partir daí todos os endpoints estarão liberados para uso.
+
+---
+
 ## Resultados
 
-| Modelo | ROC-AUC | F1 | Recall | Threshold |
-|---|---|---|---|---|
-| DummyClassifier | 0,500 | — | 0,000 | — |
-| Logistic Regression (baseline) | 0,8425 | — | 0,710 | 0,5 |
-| **MLP PyTorch (final)** | **0,8611** | **0,6537** | **0,7204** | **0,5996** |
+| Modelo | ROC-AUC | PR-AUC | F1 | Recall | Status |
+|---|---|---|---|---|---|
+| Dummy Classifier | 0,5000 | 0,2646 | 0,00 | 0% | Piso absoluto |
+| Decision Tree | 0,6549 | 0,3780 | 0,4926 | 49% | Descartado |
+| Random Forest | 0,8242 | 0,6051 | 0,5502 | 49% | Descartado |
+| SVM (RBF) | 0,8046 | 0,6252 | 0,6036 | 54% | Descartado |
+| Logistic Regression | 0,8543 | 0,6538 | 0,6223 | 77% | Baseline |
+| Gradient Boosting (tunado) | 0,8569 | 0,6685 | 0,5976 | 54% | Benchmark |
+| **MLP PyTorch [64→32]** | **0,8611** | **0,6748** | **0,6537** | **72%** | ✅ Produção |
 
 Threshold custo-ótimo (minimiza perda de LTV): 0,10 → Recall de 94,6%.
 Detalhes em [docs/results.md](docs/results.md) e [docs/decisions/002-threshold-cost-sensitive.md](docs/decisions/002-threshold-cost-sensitive.md).
@@ -53,17 +76,12 @@ Este projeto utiliza o **[uv](https://docs.astral.sh/uv/)** como gerenciador de 
 
 Para garantir a reprodutibilidade e o funcionamento correto dos comandos automatizados via `Makefile`, a instalação do `uv` é obrigatória.
 
-### Instalação do uv
-Caso ainda não o tenha instalado, execute o comando correspondente ao seu sistema operacional:
-
-* **macOS/Linux**:
-
+**macOS/Linux:**
 ```bash
 curl -sSf https://astral.sh/uv/install.sh | sh
 ```
 
-* **Windows:**:
-
+**Windows:**
 ```powershell
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
@@ -174,7 +192,7 @@ telco-churn-mlp/
 │   ├── raw/             # Telco_customer_churn.xlsx (imutável)
 │   └── processed/       # telco_churn_cleaned.csv
 ├── models/              # preprocessor_mlp.pkl · mlp_weights.pt · mlp_config.json
-├── notebooks/           # 01_eda · 02_baseline · 03_model_engineering · 04_mlp_pytorch
+├── notebooks/           # 01_eda · 02_baseline · 03_model_engineering · 04_mlp
 ├── tests/               # pytest: unitários, schema Pandera, smoke
 ├── docs/
 │   ├── model-card.md            # Model Card completo (9 seções)
@@ -190,20 +208,6 @@ telco-churn-mlp/
 
 ---
 
-## Documentação
-
-| Documento | Descrição |
-|---|---|
-| [Model Card](docs/model-card.md) | Arquitetura, métricas com IC 95%, fairness, LGPD, limitações |
-| [Plano de Monitoramento](docs/monitoring-plan.md) | PSI, thresholds de alerta, frequência, playbook de resposta |
-| [Diagramas de Arquitetura](docs/architecture_diagrams.md) | 5 diagramas Mermaid: treino, inferência, arquitetura completa, sequência da API e mapa de coerência |
-| [Resultados MLflow](docs/results.md) | Tabela comparativa de experimentos e parâmetros finais |
-| [ADR 001 — PyTorch](docs/decisions/001-uso-de-pytorch.md) | Por que PyTorch e não sklearn/XGBoost |
-| [ADR 002 — Threshold](docs/decisions/002-threshold-cost-sensitive.md) | Threshold custo-sensitivo: F1-ótimo vs custo-ótimo |
-| [ADR 003 — pos_weight](docs/decisions/003-pos-weight-balancing.md) | Por que pos_weight e não SMOTE/oversampling |
-
----
-
 ## Tecnologias
 
 | Categoria | Stack |
@@ -215,6 +219,20 @@ telco-churn-mlp/
 | Testes | pytest (unitários, schema, smoke) |
 | Qualidade de código | ruff (lint + format) |
 | Logging | structlog (logging estruturado, sem `print()`) |
+
+---
+
+## Documentação
+
+| Documento | Descrição |
+|---|---|
+| [Model Card](docs/model-card.md) | Arquitetura, métricas com IC 95%, fairness, LGPD, limitações |
+| [Plano de Monitoramento](docs/monitoring-plan.md) | PSI, thresholds de alerta, frequência, playbook de resposta |
+| [Diagramas de Arquitetura](docs/architecture_diagrams.md) | 5 diagramas Mermaid: treino, inferência, arquitetura completa, sequência da API e mapa de coerência |
+| [Resultados MLflow](docs/results.md) | Tabela comparativa de experimentos e parâmetros finais |
+| [ADR 001 — PyTorch](docs/decisions/001-uso-de-pytorch.md) | Por que PyTorch e não sklearn/XGBoost |
+| [ADR 002 — Threshold](docs/decisions/002-threshold-cost-sensitive.md) | Threshold custo-sensitivo: F1-ótimo vs custo-ótimo |
+| [ADR 003 — pos_weight](docs/decisions/003-pos-weight-balancing.md) | Por que pos_weight e não SMOTE/oversampling |
 
 ---
 
@@ -237,8 +255,9 @@ telco-churn-mlp/
 - [x] API FastAPI com validação Pydantic + Pandera + middleware de latência
 - [x] Testes automatizados (smoke, schema, unitários)
 
-**Estágio 4 — Documentação**
+**Estágio 4 — Documentação e Deploy**
 - [x] Model Card (`docs/model-card.md`)
 - [x] Plano de monitoramento (`docs/monitoring-plan.md`)
 - [x] ADRs de decisões arquiteturais (`docs/decisions/`)
-- [ ] Vídeo de apresentação STAR (5 min)
+- [x] Vídeo de apresentação STAR (5 min)
+- [x] Deploy em nuvem — API (Google Cloud Run) + frontend (Streamlit Cloud)
